@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{64F607E9-6582-44FF-8BBC-68E12C25D198}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Booklify.Domain", "src\Booklify.Domain\Booklify.Domain.csproj", "{A49EABBA-5385-48F9-B452-B3EA26D042FC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Booklify.Application", "src\Booklify.Application\Booklify.Application.csproj", "{6914D758-8673-4098-8C67-1FABEEB2C817}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Booklify.Infrastructure", "src\Booklify.Infrastructure\Booklify.Infrastructure.csproj", "{B2A51A53-D739-401F-A758-8FC01D89238F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Booklify.API", "src\Booklify.API\Booklify.API.csproj", "{B998BFD3-9270-4DA0-9BFE-C32D9A726712}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A49EABBA-5385-48F9-B452-B3EA26D042FC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A49EABBA-5385-48F9-B452-B3EA26D042FC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A49EABBA-5385-48F9-B452-B3EA26D042FC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A49EABBA-5385-48F9-B452-B3EA26D042FC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6914D758-8673-4098-8C67-1FABEEB2C817}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6914D758-8673-4098-8C67-1FABEEB2C817}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6914D758-8673-4098-8C67-1FABEEB2C817}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6914D758-8673-4098-8C67-1FABEEB2C817}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2A51A53-D739-401F-A758-8FC01D89238F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2A51A53-D739-401F-A758-8FC01D89238F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2A51A53-D739-401F-A758-8FC01D89238F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2A51A53-D739-401F-A758-8FC01D89238F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B998BFD3-9270-4DA0-9BFE-C32D9A726712}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B998BFD3-9270-4DA0-9BFE-C32D9A726712}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B998BFD3-9270-4DA0-9BFE-C32D9A726712}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B998BFD3-9270-4DA0-9BFE-C32D9A726712}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A49EABBA-5385-48F9-B452-B3EA26D042FC} = {64F607E9-6582-44FF-8BBC-68E12C25D198}
+		{6914D758-8673-4098-8C67-1FABEEB2C817} = {64F607E9-6582-44FF-8BBC-68E12C25D198}
+		{B2A51A53-D739-401F-A758-8FC01D89238F} = {64F607E9-6582-44FF-8BBC-68E12C25D198}
+		{B998BFD3-9270-4DA0-9BFE-C32D9A726712} = {64F607E9-6582-44FF-8BBC-68E12C25D198}
+	EndGlobalSection
+EndGlobal
