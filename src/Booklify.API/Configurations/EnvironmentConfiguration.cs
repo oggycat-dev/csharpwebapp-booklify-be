@@ -9,7 +9,7 @@ public static class EnvironmentConfiguration
         // Load appropriate .env file based on environment
         if (environment.Equals("Production", StringComparison.OrdinalIgnoreCase))
         {
-            DotNetEnv.Env.Load(".env.production");
+            //DotNetEnv.Env.Load(".env.production");
             builder.Configuration["App:Environment"] = "Production";
         }
         else
