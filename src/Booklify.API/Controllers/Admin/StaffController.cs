@@ -1,10 +1,12 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Booklify.API.Attributes;
 using Booklify.API.Configurations;
 using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Staff;
 using Booklify.Application.Features.Staff.Commands.CreateStaff;
+using Booklify.Application.Features.Staff.Commands.UpdateStaff;
 using Booklify.Application.Features.Staff.Queries.GetStaffs;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
@@ -139,6 +141,66 @@ public class StaffController : ControllerBase
     public async Task<IActionResult> CreateStaff([FromBody] CreateStaffRequest request)
     {
         var command = new CreateStaffCommand(request);
+        var result = await _mediator.Send(command);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+    
+    /// <summary>
+    /// Cập nhật thông tin nhân viên (PATCH - Partial Update)
+    /// </summary>
+    /// <remarks>
+    /// API này hỗ trợ cập nhật một phần thông tin nhân viên. Chỉ các trường được gửi lên mới được cập nhật.
+    /// 
+    /// Mẫu request (chỉ cần gửi các trường muốn cập nhật):
+    /// 
+    ///     PATCH /api/cms/staff/{id}
+    ///     {
+    ///        "firstName": "Tên mới",
+    ///        "phone": "0987654321",
+    ///        "isActive": false
+    ///     }
+    ///     
+    /// Các trường có thể cập nhật:
+    /// - firstName: Tên
+    /// - lastName: Họ
+    /// - phone: Số điện thoại
+    /// - email: Email
+    /// - address: Địa chỉ
+    /// - position: Vị trí (0-4)
+    /// - isActive: Trạng thái hoạt động (true/false)
+    ///     
+    /// Lưu ý: Validation sẽ bị skip cho các trường không được gửi lên.
+    /// </remarks>
+    /// <param name="id">ID của nhân viên cần cập nhật</param>
+    /// <param name="request">Thông tin cập nhật (chỉ chứa các trường muốn thay đổi)</param>
+    /// <returns>Thông tin nhân viên đã cập nhật</returns>
+    /// <response code="200">Cập nhật thành công</response>
+    /// <response code="400">Dữ liệu không hợp lệ hoặc không có thay đổi</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
+    /// <response code="404">Không tìm thấy nhân viên</response>
+    [HttpPatch("{id}")]
+    [SkipModelValidation] // Skip model validation for partial updates
+    [ProducesResponseType(typeof(Result<StaffResponse>), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Cập nhật thông tin nhân viên (Partial Update)",
+        Description = "API cập nhật một phần thông tin nhân viên. Model validation sẽ bị skip, chỉ validate các trường được gửi lên.",
+        OperationId = "Admin_UpdateStaff",
+        Tags = new[] { "Admin", "Admin_Staff" }
+    )]
+    public async Task<IActionResult> UpdateStaff(
+        [FromRoute] Guid id,
+        [FromBody] UpdateStaffRequest request)
+    {
+        var command = new UpdateStaffCommand(id, request);
         var result = await _mediator.Send(command);
         
         if (!result.IsSuccess)
