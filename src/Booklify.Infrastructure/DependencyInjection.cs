@@ -7,6 +7,8 @@ using Booklify.Domain.Entities.Identity;
 using Booklify.Infrastructure.Persistence;
 using Booklify.Infrastructure.Services;
 using Booklify.Infrastructure.Models;
+using Booklify.Application.Common.Interfaces.Repositories;
+using Booklify.Infrastructure.Repositories;
 
 namespace Booklify.Infrastructure;
 
@@ -37,11 +39,6 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString,
                 sqlOptions => 
                 {
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(30),
-                        errorNumbersToAdd: null);
-                        
                     sqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
                 }));
             
@@ -49,11 +46,6 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString,
                 sqlOptions => 
                 {
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(30),
-                        errorNumbersToAdd: null);
-                        
                     sqlOptions.MigrationsAssembly(typeof(BooklifyDbContext).Assembly.FullName);
                 }));
                 
@@ -76,7 +68,7 @@ public static class DependencyInjection
             options.Lockout.MaxFailedAccessAttempts = 5;
             
             // User settings
-            options.User.RequireUniqueEmail = true;
+            options.User.RequireUniqueEmail = false;
             
             // SignIn settings
             options.SignIn.RequireConfirmedEmail = false;
@@ -88,6 +80,12 @@ public static class DependencyInjection
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         
+        // Register repositories
+        services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
+
+        // Register Unit of Work
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
         // Register services
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();

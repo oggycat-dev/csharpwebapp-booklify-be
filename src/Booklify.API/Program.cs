@@ -94,7 +94,7 @@ if (isDevelopment)
     try
     {
         startupLogger.LogInformation("Initializing and migrating database...");
-        app.ApplyMigrations(startupLogger);
+        await app.ApplyMigrations(startupLogger);
         app.EnsureDatabaseCreated(startupLogger);
         await app.SeedDataAsync(startupLogger);
         startupLogger.LogInformation("Database initialization completed successfully.");

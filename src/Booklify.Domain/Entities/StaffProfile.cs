@@ -12,6 +12,7 @@ public class StaffProfile : BaseEntity
     /// <summary>
     /// First name of the person
     /// </summary>
+    public string? StaffCode { get; set; }
     public string FirstName { get; set; } = string.Empty;
     
     /// <summary>
@@ -38,6 +39,8 @@ public class StaffProfile : BaseEntity
     /// Person's phone number
     /// </summary>
     public string? Phone { get; set; }
+
+    public string? Email { get; set; }
     
     /// <summary>
     /// Person's address
@@ -60,42 +63,23 @@ public class StaffProfile : BaseEntity
     public virtual AppUser? IdentityUser { get; set; }
 
     /// <summary>
-    /// Staff member's position
-    /// </summary>
-    public string Position { get; set; } = string.Empty;
-    
-    /// <summary>
     /// Date when staff member joined
     /// </summary>
     public DateTime JoinDate { get; set; }
+    public DateTime? LeaveDate { get; set; }
+    public string? LeaveNote { get; set; }
+    public StaffPosition Position { get; set; } = StaffPosition.Unknown;
+    
     
     /// <summary>
-    /// Staff member's work schedule
+    /// Staff member's avatar
     /// </summary>
-    public string? WorkSchedule { get; set; }
+    public virtual FileInfo? Avatar { get; set; }
     
     /// <summary>
-    /// Staff member's specialization or expertise
+    /// Staff member's avatar ID
     /// </summary>
-    public string? Specialization { get; set; }
-    
-    // /// <summary>
-    // /// Books processed by this staff member
-    // /// </summary>
-    // public virtual ICollection<Book> ProcessedBooks { get; set; } = new List<Book>();
-    
-    // /// <summary>
-    // /// Borrowing records managed by this staff member
-    // /// </summary>
-    // public virtual ICollection<BorrowingRecord> ManagedBorrowings { get; set; } = new List<BorrowingRecord>();
-    
-    // /// <summary>
-    // /// Book categories managed by this staff member
-    // /// </summary>
-    // public virtual ICollection<BookCategory> ManagedCategories { get; set; } = new List<BookCategory>();
-    
-    // /// <summary>
-    // /// Performance metrics for the staff member
-    // /// </summary>
-    // public virtual StaffPerformance? Performance { get; set; }
+    public Guid? AvatarId { get; set; }
+
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
 } 
