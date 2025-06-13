@@ -145,7 +145,6 @@ public static class DbInitializer
                             FirstName = "Admin",
                             LastName = "Booklify",
                             FullName = "Admin Booklify",
-                            Position = "System Administrator",
                             JoinDate = DateTime.UtcNow,
                             CreatedAt = DateTime.UtcNow,
                             CreatedBy = adminUser.EntityId.Value

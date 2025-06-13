@@ -1,4 +1,5 @@
 using System.Data;
+using Booklify.Application.Common.Interfaces.Repositories;
 
 namespace Booklify.Application.Common.Interfaces;
 
@@ -11,6 +12,11 @@ public interface IUnitOfWork : IDisposable
     /// The main business context
     /// </summary>
     IBooklifyDbContext BusinessContext { get; }
+
+    /// <summary>
+    /// The staff profile repository
+    /// </summary>
+    IStaffProfileRepository StaffProfileRepository { get; }
 
     /// <summary>
     /// Begin a transaction

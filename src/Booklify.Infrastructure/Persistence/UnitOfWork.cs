@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Booklify.Application.Common.Interfaces;
+using Booklify.Application.Common.Interfaces.Repositories;
 
 namespace Booklify.Infrastructure.Persistence;
 
@@ -12,13 +13,19 @@ public class UnitOfWork : IUnitOfWork
 {
     private readonly BooklifyDbContext _businessContext;
     private IDbContextTransaction? _transaction;
+    private IStaffProfileRepository _staffProfileRepository;
 
-    public UnitOfWork(BooklifyDbContext businessContext)
+    public UnitOfWork(
+        BooklifyDbContext businessContext,
+        IStaffProfileRepository staffProfileRepository)
     {
         _businessContext = businessContext;
+        _staffProfileRepository = staffProfileRepository;
     }
 
     public IBooklifyDbContext BusinessContext => _businessContext;
+
+    public IStaffProfileRepository StaffProfileRepository => _staffProfileRepository;
 
     /// <summary>
     /// Begin a transaction
