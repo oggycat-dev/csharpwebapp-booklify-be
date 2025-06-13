@@ -87,6 +87,7 @@ yarn-error.log*
 
 # Environment files
 .env
+.env.production
 .env.local
 .env.development.local
 .env.test.local
@@ -97,3 +98,5 @@ yarn-error.log*
 *.mdf
 *.ldf
 *.ndf 
+/src/Booklify.API/Properties/PublishProfiles
+/src/Booklify.API/Properties/ServiceDependencies
