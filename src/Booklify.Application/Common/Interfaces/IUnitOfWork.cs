@@ -19,6 +19,11 @@ public interface IUnitOfWork : IDisposable
     IStaffProfileRepository StaffProfileRepository { get; }
 
     /// <summary>
+    /// The book category repository
+    /// </summary>
+    IBookCategoryRepository BookCategoryRepository { get; }
+
+    /// <summary>
     /// Begin a transaction
     /// </summary>
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

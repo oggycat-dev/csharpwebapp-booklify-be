@@ -82,6 +82,7 @@ public static class DependencyInjection
         
         // Register repositories
         services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
+        services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
 
         // Register Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
