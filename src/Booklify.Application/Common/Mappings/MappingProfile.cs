@@ -168,6 +168,15 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
             
+        // Map BookCategory to BookCategoryResponse  
+        CreateMap<BookCategory, BookCategoryResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.BooksCount, opt => opt.MapFrom(src => src.Books != null ? src.Books.Count : 0))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
+            
         // Map StaffProfile to StaffResponse
         CreateMap<StaffProfile, StaffResponse>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
