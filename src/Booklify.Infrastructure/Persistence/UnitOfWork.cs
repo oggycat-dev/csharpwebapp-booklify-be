@@ -14,18 +14,23 @@ public class UnitOfWork : IUnitOfWork
     private readonly BooklifyDbContext _businessContext;
     private IDbContextTransaction? _transaction;
     private IStaffProfileRepository _staffProfileRepository;
+    private IBookCategoryRepository _bookCategoryRepository;
 
     public UnitOfWork(
         BooklifyDbContext businessContext,
-        IStaffProfileRepository staffProfileRepository)
+        IStaffProfileRepository staffProfileRepository,
+        IBookCategoryRepository bookCategoryRepository)
     {
         _businessContext = businessContext;
         _staffProfileRepository = staffProfileRepository;
+        _bookCategoryRepository = bookCategoryRepository;
     }
 
     public IBooklifyDbContext BusinessContext => _businessContext;
 
     public IStaffProfileRepository StaffProfileRepository => _staffProfileRepository;
+
+    public IBookCategoryRepository BookCategoryRepository => _bookCategoryRepository;
 
     /// <summary>
     /// Begin a transaction

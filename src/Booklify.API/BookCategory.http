@@ -1,0 +1,19 @@
+### Create Book Category
+POST {{baseUrl}}/api/cms/book-categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Tiểu thuyết",
+  "description": "Danh mục dành cho các tiểu thuyết và truyện dài"
+}
+
+### Create Book Category - Fiction
+POST {{baseUrl}}/api/cms/book-categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Sách khoa học",
+  "description": "Danh mục dành cho các sách khoa học và công nghệ"
+} 

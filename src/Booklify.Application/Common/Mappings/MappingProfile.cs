@@ -3,6 +3,7 @@ using Booklify.Application.Common.DTOs.Auth;
 using Booklify.Domain.Entities.Identity;
 using Booklify.Domain.Entities;
 using Booklify.Application.Common.DTOs.Staff;
+using Booklify.Application.Common.DTOs.BookCategory;
 
 namespace Booklify.Application.Common.Mappings;
 
@@ -148,6 +149,23 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address ?? string.Empty))
             .ForMember(dest => dest.Position, opt => opt.MapFrom(src => src.Position.ToString()))
             .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email ?? string.Empty));
+
+        // BookCategory mapping for create request
+        CreateMap<CreateBookCategoryRequest, BookCategory>()
+            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Domain.Enums.EntityStatus.Active))
+            // Ignore other properties
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.Books, opt => opt.Ignore());
+            
+        // Map BookCategory to CreatedBookCategoryResponse
+        CreateMap<BookCategory, CreatedBookCategoryResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
     }
 
     // Helper method to get display name from user profiles
