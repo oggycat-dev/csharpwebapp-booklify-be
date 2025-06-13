@@ -3,6 +3,7 @@ using Booklify.Application.Common.DTOs.Auth;
 using Booklify.Domain.Entities.Identity;
 using Booklify.Domain.Entities;
 using Booklify.Application.Common.DTOs.Staff;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Common.Mappings;
 
@@ -148,6 +149,21 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address ?? string.Empty))
             .ForMember(dest => dest.Position, opt => opt.MapFrom(src => src.Position.ToString()))
             .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email ?? string.Empty));
+            
+        // Map StaffProfile to StaffResponse
+        CreateMap<StaffProfile, StaffResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName))
+            .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName))
+            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName ?? string.Empty))
+            .ForMember(dest => dest.StaffCode, opt => opt.MapFrom(src => src.StaffCode ?? string.Empty))
+            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email ?? string.Empty))
+            .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => src.Phone ?? string.Empty))
+            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address ?? string.Empty))
+            .ForMember(dest => dest.Position, opt => opt.MapFrom(src => GetPositionName(src.Position)))
+            .ForMember(dest => dest.PositionId, opt => opt.MapFrom(src => src.Position))
+            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => src.IdentityUser != null && src.IdentityUser.IsActive))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
     }
 
     // Helper method to get display name from user profiles
@@ -185,5 +201,22 @@ public class MappingProfile : Profile
             
         var nameParts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return nameParts.Length > 1 ? string.Join(" ", nameParts, 0, nameParts.Length - 1) : string.Empty;
+    }
+
+    // Helper method to get position name from StaffPosition enum
+    private static string GetPositionName(StaffPosition position)
+    {
+        return position switch
+        {
+            StaffPosition.Administrator => "Administrator",
+            StaffPosition.Staff => "Staff",
+            StaffPosition.UserManager => "User Manager",
+            StaffPosition.LibraryManager => "Library Manager",
+            StaffPosition.TechnicalSupport => "Technical Support",
+            StaffPosition.DataEntryClerk => "Data Entry Clerk",
+            StaffPosition.CommunityModerator => "Community Moderator",
+            StaffPosition.AIAssistantManager => "AI Assistant Manager",
+            _ => "Unknown"
+        };
     }
 } 
