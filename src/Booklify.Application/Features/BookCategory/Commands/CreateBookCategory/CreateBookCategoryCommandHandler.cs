@@ -39,6 +39,12 @@ public class CreateBookCategoryCommandHandler : IRequestHandler<CreateBookCatego
         }
 
         var currentUserId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            return Result<CreatedBookCategoryResponse>.Failure(
+                "User ID not found", 
+                ErrorCode.Unauthorized);
+        }
         
         try
         {
