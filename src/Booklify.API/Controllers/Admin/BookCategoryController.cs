@@ -5,6 +5,8 @@ using Booklify.API.Configurations;
 using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.BookCategory;
 using Booklify.Application.Features.BookCategory.Commands.CreateBookCategory;
+using Booklify.Application.Features.BookCategory.Commands.UpdateBookCategory;
+using Booklify.Application.Features.BookCategory.Commands.DeleteBookCategory;
 using Booklify.Application.Features.BookCategory.Queries.GetBookCategories;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
@@ -119,6 +121,90 @@ public class BookCategoryController : ControllerBase
     public async Task<IActionResult> CreateBookCategory([FromBody] CreateBookCategoryRequest request)
     {
         var command = new CreateBookCategoryCommand(request);
+        var result = await _mediator.Send(command);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Cập nhật danh mục sách
+    /// </summary>
+    /// <remarks>
+    /// API hỗ trợ cập nhật từng phần (partial update). Chỉ các trường được cung cấp sẽ được cập nhật.
+    /// 
+    /// Mẫu request:
+    /// 
+    ///     PATCH /api/cms/book-categories/{id}
+    ///     {
+    ///        "name": "Tiểu thuyết cập nhật",
+    ///        "description": "Mô tả mới",
+    ///        "isActive": true
+    ///     }
+    /// </remarks>
+    /// <param name="id">ID của danh mục sách</param>
+    /// <param name="request">Thông tin cập nhật</param>
+    /// <returns>Thông tin danh mục sách đã cập nhật</returns>
+    /// <response code="200">Cập nhật danh mục sách thành công</response>
+    /// <response code="400">Dữ liệu không hợp lệ hoặc không có thay đổi</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
+    /// <response code="404">Không tìm thấy danh mục sách</response>
+    [HttpPatch("{id}")]
+    [ProducesResponseType(typeof(Result<BookCategoryResponse>), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Cập nhật danh mục sách",
+        Description = "API cập nhật danh mục sách dành cho quản trị viên. Hỗ trợ cập nhật từng phần.",
+        OperationId = "Admin_UpdateBookCategory",
+        Tags = new[] { "Admin", "Admin_BookCategory" }
+    )]
+    public async Task<IActionResult> UpdateBookCategory(Guid id, [FromBody] UpdateBookCategoryRequest request)
+    {
+        var command = new UpdateBookCategoryCommand(id, request);
+        var result = await _mediator.Send(command);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Xóa danh mục sách
+    /// </summary>
+    /// <remarks>
+    /// API thực hiện xóa mềm (soft delete) bằng cách đặt trạng thái thành Inactive.
+    /// 
+    /// Lưu ý: Không thể xóa danh mục sách nếu còn chứa sách. Cần di chuyển hoặc xóa tất cả sách trong danh mục trước.
+    /// </remarks>
+    /// <param name="id">ID của danh mục sách cần xóa</param>
+    /// <returns>Kết quả xóa</returns>
+    /// <response code="200">Xóa danh mục sách thành công</response>
+    /// <response code="400">Không thể xóa danh mục sách chứa sách</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
+    /// <response code="404">Không tìm thấy danh mục sách</response>
+    [HttpDelete("{id}")]
+    [ProducesResponseType(typeof(Result), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Xóa danh mục sách",
+        Description = "API xóa danh mục sách dành cho quản trị viên. Thực hiện xóa mềm.",
+        OperationId = "Admin_DeleteBookCategory",
+        Tags = new[] { "Admin", "Admin_BookCategory" }
+    )]
+    public async Task<IActionResult> DeleteBookCategory(Guid id)
+    {
+        var command = new DeleteBookCategoryCommand(id);
         var result = await _mediator.Send(command);
         
         if (!result.IsSuccess)
