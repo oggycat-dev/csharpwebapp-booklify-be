@@ -129,7 +129,6 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Domain.Enums.EntityStatus.Active))
             // Ignore other properties
             .ForMember(dest => dest.Id, opt => opt.Ignore())
-            .ForMember(dest => dest.StaffCode, opt => opt.Ignore())
             .ForMember(dest => dest.Birthday, opt => opt.Ignore())
             .ForMember(dest => dest.Gender, opt => opt.Ignore())
             .ForMember(dest => dest.ProfilePictureUrl, opt => opt.Ignore())
