@@ -91,6 +91,10 @@ public static class DependencyInjection
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IEPubService, EPubService>();
+        
+        // Register Hangfire initialization service
+        services.AddHostedService<HangfireInitializationService>();
             
         return services;
     }

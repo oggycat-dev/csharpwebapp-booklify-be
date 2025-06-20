@@ -23,4 +23,5 @@ public class Book : BaseEntity
     //Navigator Properties
     public virtual BookCategory? Category { get; set; }
     public virtual FileInfo? File { get; set; }
+    public virtual ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
 }

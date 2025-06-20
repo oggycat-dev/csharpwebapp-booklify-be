@@ -17,7 +17,10 @@ namespace Booklify.Application.Common.Interfaces
         DbSet<FileInfo> FileInfos { get; set; }
         DbSet<Book> Books { get; set; }
         DbSet<BookCategory> BookCategories { get; set; }
+        DbSet<Chapter> Chapters { get; set; }
         DbSet<AppUser> IdentityUsers { get; set; }
         DbSet<AppRole> IdentityRoles { get; set; }
+        
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }
