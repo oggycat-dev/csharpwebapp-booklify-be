@@ -9,6 +9,7 @@ using Booklify.Infrastructure.Services;
 using Booklify.Infrastructure.Models;
 using Booklify.Application.Common.Interfaces.Repositories;
 using Booklify.Infrastructure.Repositories;
+using Amazon.S3;
 
 namespace Booklify.Infrastructure;
 
@@ -80,12 +81,44 @@ public static class DependencyInjection
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         
+        // Configure Storage settings
+        services.Configure<StorageSettings>(configuration.GetSection("Storage"));
+        
         // Register repositories
         services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
         services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
 
         // Register Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Configure AWS S3 Client
+        services.AddScoped<IAmazonS3>(provider =>
+        {
+            var storageSettings = configuration.GetSection("Storage").Get<StorageSettings>();
+            var s3Config = new AmazonS3Config
+            {
+                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(storageSettings?.AmazonS3?.Region ?? "us-east-1"),
+                UseHttp = !(storageSettings?.AmazonS3?.UseHttps ?? true)
+            };
+            
+            var accessKey = storageSettings?.AmazonS3?.AccessKey ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+            var secretKey = storageSettings?.AmazonS3?.SecretKey ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+            
+            if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
+            {
+                return new AmazonS3Client(accessKey, secretKey, s3Config);
+            }
+            
+            // Use default credential chain (IAM roles, environment variables, etc.)
+            return new AmazonS3Client(s3Config);
+        });
+
+        // Register storage services
+        services.AddScoped<LocalStorageService>();
+        services.AddScoped<AmazonS3StorageService>();
+        services.AddScoped<IStorageFactory, StorageFactory>();
+        services.AddScoped<IStorageService>(provider => 
+            provider.GetRequiredService<IStorageFactory>().CreateStorageService());
 
         // Register services
         services.AddScoped<IJwtService, JwtService>();

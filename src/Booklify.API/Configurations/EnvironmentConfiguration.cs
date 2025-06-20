@@ -106,6 +106,25 @@ public static class EnvironmentConfiguration
             Environment.GetEnvironmentVariable("HANGFIRE_MAX_CONCURRENT_JOBS_PER_QUEUE") ?? "5";
         builder.Configuration["Hangfire:Limits:QueueTimeout"] = 
             Environment.GetEnvironmentVariable("HANGFIRE_QUEUE_TIMEOUT") ?? "600"; // 10 phút
+        // Local Storage Settings
+        builder.Configuration["Storage:LocalStorage:RootPath"] = 
+            Environment.GetEnvironmentVariable("LOCAL_STORAGE_ROOT_PATH") ?? "wwwroot/uploads";
+        builder.Configuration["Storage:LocalStorage:MaxFileSize"] = 
+            Environment.GetEnvironmentVariable("LOCAL_STORAGE_MAX_FILE_SIZE") ?? "10485760"; // 10MB
+            
+        // Amazon S3 Settings
+        builder.Configuration["Storage:AmazonS3:AccessKey"] = 
+            Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID") ?? string.Empty;
+        builder.Configuration["Storage:AmazonS3:SecretKey"] = 
+            Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY") ?? string.Empty;
+        builder.Configuration["Storage:AmazonS3:BucketName"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_BUCKET_NAME") ?? string.Empty;
+        builder.Configuration["Storage:AmazonS3:Region"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_REGION") ?? "us-east-1";
+        builder.Configuration["Storage:AmazonS3:UseHttps"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_USE_HTTPS") ?? "true";
+        builder.Configuration["Storage:AmazonS3:MaxFileSize"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_MAX_FILE_SIZE") ?? "52428800"; // 50MB
 
         return builder;
     }
