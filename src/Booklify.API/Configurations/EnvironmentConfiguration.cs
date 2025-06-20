@@ -84,6 +84,18 @@ public static class EnvironmentConfiguration
         builder.Configuration["Storage:AmazonS3:MaxFileSize"] = 
             Environment.GetEnvironmentVariable("AWS_S3_MAX_FILE_SIZE") ?? "52428800"; // 50MB
 
+        // VNPay Settings
+        builder.Configuration["VNPay:TmnCode"] = 
+            Environment.GetEnvironmentVariable("VNPAY_TMN_CODE") ?? "2QXUI4J4";
+        builder.Configuration["VNPay:HashSecret"] = 
+            Environment.GetEnvironmentVariable("VNPAY_HASH_SECRET") ?? "SECRETKEY123456789";
+        builder.Configuration["VNPay:PaymentUrl"] = 
+            Environment.GetEnvironmentVariable("VNPAY_PAYMENT_URL") ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+        builder.Configuration["VNPay:ReturnUrl"] = 
+            Environment.GetEnvironmentVariable("VNPAY_RETURN_URL") ?? "https://localhost:5123/api/payment/vnpay/return";
+        builder.Configuration["VNPay:TimeoutInMinutes"] = 
+            Environment.GetEnvironmentVariable("VNPAY_TIMEOUT_MINUTES") ?? "15";
+
         return builder;
     }
 } 

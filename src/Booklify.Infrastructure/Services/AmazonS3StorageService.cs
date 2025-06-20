@@ -38,6 +38,12 @@ public class AmazonS3StorageService : IStorageService
         // Generate unique filename
         var uniqueFileName = $"{Guid.NewGuid()}{extension}";
         
+        // Auto-determine folder based on file type if not specified
+        if (folder == null)
+        {
+            folder = GetDefaultFolderForFileType(extension);
+        }
+        
         // Create S3 key with folder if specified
         var key = folder != null 
             ? $"{folder.Trim('/')}/{uniqueFileName}"
@@ -74,6 +80,35 @@ public class AmazonS3StorageService : IStorageService
     {
         using var stream = new MemoryStream(fileBytes);
         return await UploadFileAsync(stream, fileName, contentType, folder);
+    }
+
+    /// <summary>
+    /// Upload EPUB file with specific book category prefix
+    /// </summary>
+    public async Task<string> UploadEpubFileAsync(Stream fileStream, string fileName, string contentType, string? categoryName = null)
+    {
+        // Validate that this is an EPUB file
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (extension != ".epub")
+        {
+            throw new InvalidOperationException("This method is only for EPUB files");
+        }
+
+        // Create folder structure: books/epub/{category}/
+        var folder = categoryName != null 
+            ? $"books/epub/{SanitizeFolderName(categoryName)}"
+            : "books/epub";
+
+        return await UploadFileAsync(fileStream, fileName, contentType, folder);
+    }
+
+    /// <summary>
+    /// Upload EPUB file with specific book category prefix (byte array version)
+    /// </summary>
+    public async Task<string> UploadEpubFileAsync(byte[] fileBytes, string fileName, string contentType, string? categoryName = null)
+    {
+        using var stream = new MemoryStream(fileBytes);
+        return await UploadEpubFileAsync(stream, fileName, contentType, categoryName);
     }
 
     public async Task<bool> DeleteFileAsync(string fileUrl)
@@ -213,5 +248,67 @@ public class AmazonS3StorageService : IStorageService
 
         // If no pattern matches, assume it's already a key
         return fileUrl.TrimStart('/');
+    }
+
+    /// <summary>
+    /// Get default folder based on file extension
+    /// </summary>
+    private string? GetDefaultFolderForFileType(string extension)
+    {
+        return extension.ToLowerInvariant() switch
+        {
+            ".epub" => "books/epub",
+            ".pdf" => "books/pdf", 
+            ".jpg" or ".jpeg" => "images/covers",
+            ".png" => "images/covers",
+            ".webp" => "images/covers",
+            ".gif" => "images/covers",
+            ".mp3" => "audio/books",
+            ".wav" => "audio/books",
+            ".mp4" => "video/books",
+            ".avi" => "video/books",
+            ".txt" => "documents/text",
+            ".docx" => "documents/word",
+            ".doc" => "documents/word",
+            _ => "uploads" // Default folder for other file types
+        };
+    }
+
+    /// <summary>
+    /// Sanitize folder name for S3 compatibility
+    /// </summary>
+    private string SanitizeFolderName(string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+            return "uncategorized";
+
+        // Remove invalid characters for S3 keys
+        var sanitized = folderName
+            .Replace(" ", "-")
+            .Replace("/", "-")
+            .Replace("\\", "-")
+            .Replace("?", "")
+            .Replace("#", "")
+            .Replace("[", "")
+            .Replace("]", "")
+            .Replace("@", "")
+            .Replace("!", "")
+            .Replace("$", "")
+            .Replace("&", "")
+            .Replace("'", "")
+            .Replace("(", "")
+            .Replace(")", "")
+            .Replace("*", "")
+            .Replace("+", "")
+            .Replace(",", "")
+            .Replace(";", "")
+            .Replace("=", "")
+            .Replace(":", "")
+            .ToLowerInvariant();
+
+        // Ensure it doesn't start or end with dash
+        sanitized = sanitized.Trim('-');
+        
+        return string.IsNullOrEmpty(sanitized) ? "uncategorized" : sanitized;
     }
 } 

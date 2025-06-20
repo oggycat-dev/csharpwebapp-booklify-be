@@ -70,4 +70,9 @@ public class UserProfile : BaseEntity
     public Guid? AvatarId { get; set; }
 
     public EntityStatus Status { get; set; } = EntityStatus.Active;
+    
+    /// <summary>
+    /// Navigation property to user subscriptions
+    /// </summary>
+    public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
 } 
