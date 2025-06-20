@@ -19,7 +19,7 @@ public class LocalStorageSettings
 {
     public string RootPath { get; set; } = "wwwroot/uploads";
     public long MaxFileSize { get; set; } = 10 * 1024 * 1024; // 10MB
-    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx" };
+    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub" };
 }
 
 /// <summary>
@@ -33,7 +33,7 @@ public class AmazonS3Settings
     public string Region { get; set; } = "us-east-1";
     public bool UseHttps { get; set; } = true;
     public long MaxFileSize { get; set; } = 50 * 1024 * 1024; // 50MB
-    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx" };
+    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub" };
 }
 
 /// <summary>
@@ -44,5 +44,5 @@ public class AzureBlobSettings
     public string ConnectionString { get; set; } = string.Empty;
     public string ContainerName { get; set; } = string.Empty;
     public long MaxFileSize { get; set; } = 50 * 1024 * 1024; // 50MB
-    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx" };
+    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub" };
 } 

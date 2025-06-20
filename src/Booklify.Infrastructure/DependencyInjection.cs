@@ -84,6 +84,9 @@ public static class DependencyInjection
         // Configure Storage settings
         services.Configure<StorageSettings>(configuration.GetSection("Storage"));
         
+        // Configure VNPay settings
+        services.Configure<VNPaySettings>(configuration.GetSection("VNPay"));
+        
         // Register repositories
         services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
         services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
@@ -124,6 +127,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IVNPayService, VNPayService>();
             
         return services;
     }

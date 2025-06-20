@@ -1,0 +1,33 @@
+### Variables
+@baseUrl = https://localhost:7000
+@apiUrl = {{baseUrl}}/api
+
+### Upload EPUB file (general method - will auto-prefix to books/epub/)
+POST {{apiUrl}}/files/upload
+Content-Type: multipart/form-data
+Authorization: Bearer YOUR_TOKEN_HERE
+
+< ./sample-book.epub
+
+### Upload EPUB file with category prefix (books/epub/fantasy/)
+POST {{apiUrl}}/files/upload-epub
+Content-Type: multipart/form-data
+Authorization: Bearer YOUR_TOKEN_HERE
+
+< ./sample-book.epub
+category_name: "Fantasy"
+
+### Upload EPUB file with category prefix (books/epub/science-fiction/)
+POST {{apiUrl}}/files/upload-epub
+Content-Type: multipart/form-data
+Authorization: Bearer YOUR_TOKEN_HERE
+
+< ./sample-book.epub
+category_name: "Science Fiction"
+
+### Upload regular file (will go to appropriate folder based on extension)
+POST {{apiUrl}}/files/upload
+Content-Type: multipart/form-data
+Authorization: Bearer YOUR_TOKEN_HERE
+
+< ./cover-image.jpg 

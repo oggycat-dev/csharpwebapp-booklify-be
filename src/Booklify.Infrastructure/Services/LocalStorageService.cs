@@ -77,6 +77,29 @@ public class LocalStorageService : IStorageService
         return await UploadFileAsync(stream, fileName, contentType, folder);
     }
 
+    public async Task<string> UploadEpubFileAsync(Stream fileStream, string fileName, string contentType, string? categoryName = null)
+    {
+        // Validate that this is an EPUB file
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        if (extension != ".epub")
+        {
+            throw new InvalidOperationException("This method is only for EPUB files");
+        }
+
+        // Create folder structure: books/epub/{category}/
+        var folder = categoryName != null 
+            ? $"books/epub/{SanitizeFolderName(categoryName)}"
+            : "books/epub";
+
+        return await UploadFileAsync(fileStream, fileName, contentType, folder);
+    }
+
+    public async Task<string> UploadEpubFileAsync(byte[] fileBytes, string fileName, string contentType, string? categoryName = null)
+    {
+        using var stream = new MemoryStream(fileBytes);
+        return await UploadEpubFileAsync(stream, fileName, contentType, categoryName);
+    }
+
     public Task<bool> DeleteFileAsync(string fileUrl)
     {
         try
@@ -178,7 +201,36 @@ public class LocalStorageService : IStorageService
             ".doc" => "application/msword",
             ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             ".txt" => "text/plain",
+            ".epub" => "application/epub+zip",
             _ => "application/octet-stream"
         };
+    }
+
+    /// <summary>
+    /// Sanitize folder name for file system compatibility
+    /// </summary>
+    private string SanitizeFolderName(string folderName)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+            return "uncategorized";
+
+        // Remove invalid characters for file system
+        var sanitized = folderName
+            .Replace(" ", "-")
+            .Replace("/", "-")
+            .Replace("\\", "-")
+            .Replace("?", "")
+            .Replace("<", "")
+            .Replace(">", "")
+            .Replace(":", "")
+            .Replace("*", "")
+            .Replace("|", "")
+            .Replace("\"", "")
+            .ToLowerInvariant();
+
+        // Ensure it doesn't start or end with dash
+        sanitized = sanitized.Trim('-');
+        
+        return string.IsNullOrEmpty(sanitized) ? "uncategorized" : sanitized;
     }
 } 
