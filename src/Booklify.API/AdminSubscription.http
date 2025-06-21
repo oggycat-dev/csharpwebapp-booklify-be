@@ -1,0 +1,174 @@
+### Admin Subscription Management Tests
+
+@baseUrl = https://localhost:7167
+@adminToken = {{admin_token}}
+
+### 1. Login as admin to get token
+POST {{baseUrl}}/api/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Admin123!"
+}
+
+### 2. Get all subscription plans
+GET {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{adminToken}}
+
+### 3. Get subscription plans with filtering
+GET {{baseUrl}}/api/admin/subscription?Name=Basic&MinPrice=10&MaxPrice=100&SortBy=price&IsDescending=false&PageNumber=1&PageSize=10
+Authorization: Bearer {{adminToken}}
+
+### 4. Get subscription plan by ID
+GET {{baseUrl}}/api/admin/subscription/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {{adminToken}}
+
+### 5. Create new subscription plan
+POST {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Premium Monthly",
+  "description": "Access to premium features for one month",
+  "price": 99000,
+  "duration": 30,
+  "features": [
+    "Unlimited book downloads",
+    "Offline reading",
+    "Premium support",
+    "Advanced search"
+  ],
+  "is_popular": true,
+  "display_order": 1
+}
+
+### 6. Create another subscription plan
+POST {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Basic Monthly",
+  "description": "Basic access to books for one month",
+  "price": 49000,
+  "duration": 30,
+  "features": [
+    "Limited book downloads",
+    "Basic support"
+  ],
+  "is_popular": false,
+  "display_order": 2
+}
+
+### 7. Create yearly subscription plan
+POST {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Premium Yearly",
+  "description": "Premium access for one year with discount",
+  "price": 990000,
+  "duration": 365,
+  "features": [
+    "Unlimited book downloads",
+    "Offline reading",
+    "Premium support",
+    "Advanced search",
+    "Priority customer service",
+    "Early access to new books"
+  ],
+  "is_popular": true,
+  "display_order": 0
+}
+
+### 8. Update subscription plan
+PUT {{baseUrl}}/api/admin/subscription/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Premium Monthly Updated",
+  "description": "Updated description for premium monthly plan",
+  "price": 89000,
+  "features": [
+    "Unlimited book downloads",
+    "Offline reading",
+    "Premium support",
+    "Advanced search",
+    "New feature added"
+  ],
+  "is_popular": true
+}
+
+### 9. Partial update subscription plan (only price)
+PUT {{baseUrl}}/api/admin/subscription/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "price": 95000
+}
+
+### 10. Get subscription statistics
+GET {{baseUrl}}/api/admin/subscription/statistics
+Authorization: Bearer {{adminToken}}
+
+### 11. Delete subscription plan
+DELETE {{baseUrl}}/api/admin/subscription/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {{adminToken}}
+
+### 12. Test error cases
+
+### 12a. Create subscription with invalid data
+POST {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "price": -10,
+  "duration": 400
+}
+
+### 12b. Create subscription with duplicate name
+POST {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Premium Monthly",
+  "description": "Duplicate name test",
+  "price": 50000,
+  "duration": 30,
+  "features": ["Test feature"]
+}
+
+### 12c. Update non-existent subscription
+PUT {{baseUrl}}/api/admin/subscription/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Non-existent"
+}
+
+### 12d. Delete non-existent subscription
+DELETE {{baseUrl}}/api/admin/subscription/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}}
+
+### 12e. Access without authentication
+GET {{baseUrl}}/api/admin/subscription
+
+### 12f. Access with user token (should fail)
+GET {{baseUrl}}/api/admin/subscription
+Authorization: Bearer {{user_token}}
+
+### Notes:
+# - Replace baseUrl with your actual API URL
+# - Replace adminToken with actual admin JWT token from login response
+# - Replace subscription IDs with actual IDs from your database
+# - Test cases cover CRUD operations, filtering, pagination, and error scenarios
+# - Make sure to test with different user roles to verify authorization 

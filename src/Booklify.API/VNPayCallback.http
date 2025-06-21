@@ -1,0 +1,31 @@
+### VNPay Callback Tests
+
+### 1. Test VNPay IPN Success Callback
+POST https://localhost:7167/api/payment/vnpay/ipn
+Content-Type: application/x-www-form-urlencoded
+
+vnp_Amount=5000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14526421&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20goi%20dich%20vu%3A123456&vnp_PayDate=20241220123045&vnp_ResponseCode=00&vnp_TmnCode=2QXUI4B4&vnp_TransactionNo=14526421&vnp_TransactionStatus=00&vnp_TxnRef=123e4567-e89b-12d3-a456-426614174000&vnp_SecureHash=test_hash_here
+
+### 2. Test VNPay IPN Failed Callback
+POST https://localhost:7167/api/payment/vnpay/ipn
+Content-Type: application/x-www-form-urlencoded
+
+vnp_Amount=5000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14526422&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20goi%20dich%20vu%3A123456&vnp_PayDate=20241220123045&vnp_ResponseCode=24&vnp_TmnCode=2QXUI4B4&vnp_TransactionNo=14526422&vnp_TransactionStatus=02&vnp_TxnRef=123e4567-e89b-12d3-a456-426614174000&vnp_SecureHash=test_hash_here
+
+### 3. Test VNPay IPN GET Callback (some banks use GET)
+GET https://localhost:7167/api/payment/vnpay/ipn?vnp_Amount=5000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14526421&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20goi%20dich%20vu%3A123456&vnp_PayDate=20241220123045&vnp_ResponseCode=00&vnp_TmnCode=2QXUI4B4&vnp_TransactionNo=14526421&vnp_TransactionStatus=00&vnp_TxnRef=123e4567-e89b-12d3-a456-426614174000&vnp_SecureHash=test_hash_here
+
+### 4. Test VNPay Return URL (for user redirect)
+GET https://localhost:7167/api/payment/vnpay/return?vnp_Amount=5000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14526421&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20goi%20dich%20vu%3A123456&vnp_PayDate=20241220123045&vnp_ResponseCode=00&vnp_TmnCode=2QXUI4B4&vnp_TransactionNo=14526421&vnp_TransactionStatus=00&vnp_TxnRef=123e4567-e89b-12d3-a456-426614174000&vnp_SecureHash=test_hash_here
+
+### 5. Test Get Payment Status
+GET https://localhost:7167/api/payment/status/123e4567-e89b-12d3-a456-426614174000
+Authorization: Bearer {{access_token}}
+
+### Notes:
+# - Replace localhost:7167 with your actual API URL
+# - Replace vnp_TxnRef with actual Payment ID from your database
+# - Replace vnp_SecureHash with actual hash calculated according to VNPay specs
+# - For testing, you may need to temporarily disable signature validation
+# - vnp_Amount is in cents (50000 = 500.00 VND)
+# - vnp_ResponseCode: 00 = success, 24 = cancelled, others = failed 

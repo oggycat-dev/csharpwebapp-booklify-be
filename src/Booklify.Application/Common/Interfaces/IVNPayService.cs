@@ -35,4 +35,12 @@ public interface IVNPayService
     /// <param name="responseCode">VNPay response code</param>
     /// <returns>Localized message</returns>
     string GetPaymentStatusMessage(string responseCode);
+    
+    /// <summary>
+    /// Validate VNPay callback signature
+    /// </summary>
+    /// <param name="parameters">Callback parameters</param>
+    /// <param name="secureHash">Secure hash from VNPay</param>
+    /// <returns>True if signature is valid</returns>
+    Task<bool> ValidateCallbackAsync(Dictionary<string, string> parameters, string secureHash);
 } 

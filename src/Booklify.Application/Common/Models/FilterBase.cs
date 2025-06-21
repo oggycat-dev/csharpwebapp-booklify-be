@@ -15,6 +15,16 @@ public class FilterBase : PaginationFilter
     /// </summary>
     public bool IsAscending { get; set; } = true;
     
+    /// <summary>
+    /// Direction of sorting (true for descending, false for ascending)
+    /// </summary>
+    public bool IsDescending => !IsAscending;
+    
+    /// <summary>
+    /// Search keyword for general text search
+    /// </summary>
+    public string? SearchKeyword { get; set; }
+    
     public FilterBase() : base()
     {
     }
