@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.Extensions;
+using MediatR;
 using Booklify.Application.Common.Interfaces;
 using Booklify.Application.Common.DTOs.Payment;
+using Booklify.Application.Features.Payment.Commands.ProcessPaymentCallback;
 
 namespace Booklify.API.Controllers;
 
@@ -12,11 +15,13 @@ namespace Booklify.API.Controllers;
 public class PaymentController : ControllerBase
 {
     private readonly IVNPayService _vnPayService;
+    private readonly IMediator _mediator;
     private readonly ILogger<PaymentController> _logger;
 
-    public PaymentController(IVNPayService vnPayService, ILogger<PaymentController> logger)
+    public PaymentController(IVNPayService vnPayService, IMediator mediator, ILogger<PaymentController> logger)
     {
         _vnPayService = vnPayService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -117,47 +122,116 @@ public class PaymentController : ControllerBase
     }
 
     /// <summary>
-    /// Handle VNPay IPN (Instant Payment Notification)
+    /// Handle VNPay IPN (Instant Payment Notification) following VNPay standard
     /// </summary>
     /// <returns>IPN response</returns>
     [HttpPost("vnpay/ipn")]
+    [HttpGet("vnpay/ipn")]
     public async Task<IActionResult> VNPayIPN()
     {
+        string returnContent = string.Empty;
+        
         try
         {
-            // Extract query or form parameters
-            var queryParams = Request.HasFormContentType 
-                ? Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString())
-                : Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
+            _logger.LogInformation("Begin VNPay IPN, URL={0}", Request.GetDisplayUrl());
+
+            // Extract query parameters (VNPay sends IPN via GET request)
+            var queryParams = Request.Query.ToDictionary(x => x.Key, x => x.Value.ToString());
 
             if (!queryParams.Any())
             {
-                _logger.LogWarning("VNPay IPN called with no parameters");
-                return Ok(new { RspCode = "99", Message = "No data received" });
-            }
-
-            var response = await _vnPayService.ProcessReturnResponseAsync(queryParams);
-
-            _logger.LogInformation("VNPay IPN processed - OrderId: {OrderId}, Success: {Success}, ResponseCode: {ResponseCode}", 
-                response.OrderId, response.Success, response.ResponseCode);
-
-            // TODO: Update order status in database based on payment result
-            // await _orderService.UpdatePaymentStatusAsync(response.OrderId, response.Success, response.TransactionId);
-
-            if (response.Success)
-            {
-                return Ok(new { RspCode = "00", Message = "Confirm Success" });
+                _logger.LogWarning("VNPay IPN called with no query parameters");
+                returnContent = "{\"RspCode\":\"99\",\"Message\":\"Input data required\"}";
             }
             else
             {
-                return Ok(new { RspCode = "99", Message = "Payment Failed" });
+                // Extract VNPay parameters following standard
+                var orderId = queryParams.GetValueOrDefault("vnp_TxnRef", "");
+                var vnpAmount = queryParams.GetValueOrDefault("vnp_Amount", "0");
+                var vnpayTranId = queryParams.GetValueOrDefault("vnp_TransactionNo", "");
+                var vnpResponseCode = queryParams.GetValueOrDefault("vnp_ResponseCode", "");
+                var vnpTransactionStatus = queryParams.GetValueOrDefault("vnp_TransactionStatus", "");
+                var vnpSecureHash = queryParams.GetValueOrDefault("vnp_SecureHash", "");
+
+                // Validate signature first (following VNPay standard)
+                bool checkSignature = _vnPayService.VerifySignature(queryParams);
+                
+                if (checkSignature)
+                {
+                    // Convert amount from cents to VND
+                    if (!long.TryParse(vnpAmount, out var amount))
+                    {
+                        _logger.LogWarning("Invalid amount in VNPay IPN: {Amount}", vnpAmount);
+                        returnContent = "{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}";
+                    }
+                    else
+                    {
+                        amount = amount / 100; // Convert from cents
+
+                        // Create command to process callback
+                        var command = new ProcessPaymentCallbackCommand
+                        {
+                            OrderId = orderId,
+                            TransactionId = vnpayTranId,
+                            ResponseCode = vnpResponseCode,
+                            TransactionStatus = vnpTransactionStatus,
+                            Amount = amount,
+                            PaymentMethod = queryParams.GetValueOrDefault("vnp_CardType", ""),
+                            BankCode = queryParams.GetValueOrDefault("vnp_BankCode", ""),
+                            PayDate = queryParams.GetValueOrDefault("vnp_PayDate", ""),
+                            SecureHash = vnpSecureHash,
+                            AdditionalData = queryParams
+                        };
+
+                        // Process the callback
+                        var result = await _mediator.Send(command);
+
+                        if (result.IsSuccess)
+                        {
+                            _logger.LogInformation("VNPay IPN processed successfully, OrderId={0}, VNPAY TranId={1}", 
+                                orderId, vnpayTranId);
+                            returnContent = "{\"RspCode\":\"00\",\"Message\":\"Confirm Success\"}";
+                        }
+                        else if (result.Message.Contains("already confirmed"))
+                        {
+                            _logger.LogInformation("VNPay IPN - Order already confirmed, OrderId={0}", orderId);
+                            returnContent = "{\"RspCode\":\"02\",\"Message\":\"Order already confirmed\"}";
+                        }
+                        else if (result.Message.Contains("not found"))
+                        {
+                            _logger.LogWarning("VNPay IPN - Order not found, OrderId={0}", orderId);
+                            returnContent = "{\"RspCode\":\"01\",\"Message\":\"Order not found\"}";
+                        }
+                        else if (result.Message.Contains("amount"))
+                        {
+                            _logger.LogWarning("VNPay IPN - Invalid amount, OrderId={0}", orderId);
+                            returnContent = "{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}";
+                        }
+                        else
+                        {
+                            _logger.LogError("VNPay IPN processing failed, OrderId={0}, Error={1}", 
+                                orderId, result.Message);
+                            returnContent = "{\"RspCode\":\"99\",\"Message\":\"Unknown error\"}";
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("VNPay IPN - Invalid signature, InputData={0}", Request.GetDisplayUrl());
+                    returnContent = "{\"RspCode\":\"97\",\"Message\":\"Invalid signature\"}";
+                }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing VNPay IPN");
-            return Ok(new { RspCode = "99", Message = "Internal Error" });
+            returnContent = "{\"RspCode\":\"99\",\"Message\":\"Unknown error\"}";
         }
+
+        // Return response to VNPay (following VNPay standard)
+        Response.Clear();
+        Response.ContentType = "application/json";
+        return Content(returnContent);
     }
 
     /// <summary>

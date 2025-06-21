@@ -29,6 +29,21 @@ public class Subscription : BaseEntity
     public int Duration { get; set; }
     
     /// <summary>
+    /// Features included in this subscription (semicolon-separated)
+    /// </summary>
+    public string? Features { get; set; }
+    
+    /// <summary>
+    /// Whether this subscription is marked as popular
+    /// </summary>
+    public bool IsPopular { get; set; }
+    
+    /// <summary>
+    /// Display order for sorting subscription plans
+    /// </summary>
+    public int DisplayOrder { get; set; }
+    
+    /// <summary>
     /// Whether this subscription is active
     /// </summary>
     public EntityStatus Status { get; set; } = EntityStatus.Active;
