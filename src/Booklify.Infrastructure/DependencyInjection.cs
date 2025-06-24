@@ -9,7 +9,9 @@ using Booklify.Infrastructure.Services;
 using Booklify.Infrastructure.Models;
 using Booklify.Application.Common.Interfaces.Repositories;
 using Booklify.Infrastructure.Repositories;
+
 using Amazon.S3;
+using Booklify.Infrastructure.Services.BackgroundJobs;
 
 namespace Booklify.Infrastructure;
 
@@ -90,6 +92,10 @@ public static class DependencyInjection
         // Register repositories
         services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
         services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
+        services.AddScoped<IBookRepository, BookRepository>();
+        services.AddScoped<IChapterRepository, ChapterRepository>();
+        services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+        services.AddScoped<IFileInfoRepository, FileInfoRepository>();
 
         // Register Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -127,6 +133,15 @@ public static class DependencyInjection
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IEPubService, EPubService>();
+        services.AddScoped<IFileBackgroundService, FileBackgroundService>();
+        services.AddScoped<IFileService, FileService>();
+        
+        // Background jobs are registered in HangfireConfiguration
+        
+        
+        // Register Hangfire initialization service
+        services.AddHostedService<HangfireInitializationService>();
         services.AddScoped<IVNPayService, VNPayService>();
             
         return services;

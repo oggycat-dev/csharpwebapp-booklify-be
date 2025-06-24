@@ -24,6 +24,26 @@ public interface IUnitOfWork : IDisposable
     IBookCategoryRepository BookCategoryRepository { get; }
 
     /// <summary>
+    /// The book repository
+    /// </summary>
+    IBookRepository BookRepository { get; }
+
+    /// <summary>
+    /// The chapter repository
+    /// </summary>
+    IChapterRepository ChapterRepository { get; }
+
+    /// <summary>
+    /// The user profile repository
+    /// </summary>
+    IUserProfileRepository UserProfileRepository { get; }
+
+    /// <summary>
+    /// The file info repository
+    /// </summary>
+    IFileInfoRepository FileInfoRepository { get; }
+
+    /// <summary>
     /// Begin a transaction
     /// </summary>
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

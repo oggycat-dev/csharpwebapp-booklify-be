@@ -17,10 +17,11 @@ public class Book : BaseEntity
     public bool IsPremium { get; set; }
     public string? FilePath { get; set; }
     public string? Tags { get; set; }
-    public int WordCount { get; set; } = 0;
     public int PageCount { get; set; } = 0;
+    public DateTime? PublishedDate { get; set; }
     
     //Navigator Properties
     public virtual BookCategory? Category { get; set; }
     public virtual FileInfo? File { get; set; }
+    public virtual ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
 }

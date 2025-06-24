@@ -33,6 +33,7 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
     // Book and Category
     public DbSet<Book> Books { get; set; }
     public DbSet<BookCategory> BookCategories { get; set; }
+    public DbSet<Chapter> Chapters { get; set; }
     
     // Subscription and Payment
     public DbSet<Subscription> Subscriptions { get; set; }
