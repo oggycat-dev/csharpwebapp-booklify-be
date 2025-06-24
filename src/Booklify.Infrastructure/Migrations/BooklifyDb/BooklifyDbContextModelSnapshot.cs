@@ -827,6 +827,8 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.Navigation("Book");
 
                     b.Navigation("ParentChapter");
+                });
+
             modelBuilder.Entity("Booklify.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("Booklify.Domain.Entities.UserSubscription", "UserSubscription")
@@ -875,6 +877,8 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
             modelBuilder.Entity("Booklify.Domain.Entities.Book", b =>
                 {
                     b.Navigation("Chapters");
+                });
+
             modelBuilder.Entity("Booklify.Domain.Entities.UserSubscription", b =>
                 {
                     b.HasOne("Booklify.Domain.Entities.Subscription", "Subscription")
@@ -928,4 +932,4 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
 #pragma warning restore 612, 618
         }
     }
-        }
+}

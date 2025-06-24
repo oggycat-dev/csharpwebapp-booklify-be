@@ -40,19 +40,35 @@ public class BookController : ControllerBase
     /// - Tạo chapters tự động dựa trên table of contents
     /// - Upload ảnh bìa lên storage
     /// 
-    /// Form data request:
-    /// - File: File sách (bắt buộc)
-    /// - Title: Tiêu đề sách (bắt buộc)
-    /// - Description: Mô tả sách
-    /// - Author: Tác giả (bắt buộc)
-    /// - ISBN: Mã ISBN
-    /// - Publisher: Nhà xuất bản
-    /// - CategoryId: ID danh mục sách (bắt buộc)
-    /// - IsPremium: Sách có phí hay không
-    /// - Tags: Thẻ tag (phân cách bằng dấu phẩy)
-    /// - PublishedDate: Ngày xuất bản (yyyy-MM-dd)
+    /// Form data request (multipart/form-data):
+    /// - file: File sách (bắt buộc) - định dạng: PDF, EPUB, DOCX, TXT
+    /// - title: Tiêu đề sách (bắt buộc)
+    /// - description: Mô tả sách (không bắt buộc)
+    /// - author: Tác giả (bắt buộc)
+    /// - isbn: Mã ISBN (không bắt buộc)
+    /// - publisher: Nhà xuất bản (không bắt buộc)
+         /// - category_id: ID danh mục sách (bắt buộc) - định dạng: GUID
+     /// - is_premium: Sách có phí hay không (không bắt buộc) - true/false
+     /// - tags: Thẻ tag (không bắt buộc) - phân cách bằng dấu phẩy
+     /// - published_date: Ngày xuất bản (không bắt buộc) - định dạng: yyyy-MM-dd
+    /// 
+    /// Giới hạn file:
+    /// - Kích thước tối đa: 50MB
+    /// - Định dạng được hỗ trợ: .pdf, .epub, .docx, .txt
+    /// 
+    /// Lưu ý:
+    /// - Đối với EPUB: metadata sẽ được extract tự động trong background
+    /// - Approval status: Admin sẽ được auto-approve, Staff cần approval
     /// </remarks>
-    /// <param name="request">Thông tin sách mới</param>
+    /// <param name="title">Tiêu đề sách</param>
+    /// <param name="description">Mô tả sách</param>
+    /// <param name="author">Tác giả</param>
+    /// <param name="isbn">Mã ISBN</param>
+    /// <param name="publisher">Nhà xuất bản</param>
+         /// <param name="categoryId">ID danh mục sách</param>
+     /// <param name="isPremium">Sách có phí hay không</param>
+     /// <param name="tags">Thẻ tag (phân cách bằng dấu phẩy)</param>
+     /// <param name="publishedDate">Ngày xuất bản</param>
     /// <returns>Thông tin sách đã tạo</returns>
     /// <response code="200">Tạo sách thành công</response>
     /// <response code="400">Dữ liệu không hợp lệ hoặc file không được hỗ trợ</response>
@@ -71,8 +87,56 @@ public class BookController : ControllerBase
         OperationId = "Admin_CreateBook",
         Tags = new[] { "Admin", "Admin_Book" }
     )]
-    public async Task<IActionResult> CreateBook([FromForm] CreateBookRequest request)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateBook(
+        [FromForm(Name = "title")] string title,
+        [FromForm(Name = "description")] string description = "",
+        [FromForm(Name = "author")] string author = "",
+        [FromForm(Name = "isbn")] string isbn = "",
+        [FromForm(Name = "publisher")] string publisher = "",
+        [FromForm(Name = "category_id")] Guid categoryId = default,
+        [FromForm(Name = "is_premium")] bool isPremium = false,
+        [FromForm(Name = "tags")] string? tags = null,
+        [FromForm(Name = "published_date")] DateTime? publishedDate = null)
     {
+        // Validate required fields
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return BadRequest(Result.Failure("Tiêu đề sách là bắt buộc"));
+        }
+
+        if (string.IsNullOrWhiteSpace(author))
+        {
+            return BadRequest(Result.Failure("Tác giả là bắt buộc"));
+        }
+
+        if (categoryId == Guid.Empty)
+        {
+            return BadRequest(Result.Failure("ID danh mục sách là bắt buộc"));
+        }
+
+        // Get the file from form
+        var file = Request.Form.Files.GetFile("file");
+        if (file == null)
+        {
+            return BadRequest(Result.Failure("File sách là bắt buộc"));
+        }
+
+        // Create the request object
+        var request = new CreateBookRequest
+        {
+            Title = title,
+            Description = description,
+            Author = author,
+            ISBN = isbn,
+            Publisher = publisher,
+            CategoryId = categoryId,
+            IsPremium = isPremium,
+            Tags = tags,
+            PublishedDate = publishedDate,
+            File = file
+        };
+
         var command = new CreateBookCommand(request);
         var result = await _mediator.Send(command);
 
