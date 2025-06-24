@@ -1,3 +1,4 @@
+using Hangfire;
 using Hangfire.Common;
 using Hangfire.States;
 using Hangfire.Storage;
@@ -26,10 +27,20 @@ public class JobConcurrencyFilterAttribute : JobFilterAttribute, IElectStateFilt
                 queueName = queue;
             }
 
-            // Count current processing jobs in this queue
-            var processingJobs = connection.GetSetCount($"processing:{queueName}");
+            // Use a simpler approach - get all processing jobs and count them
+            var processingJobsInQueue = 0;
+            try
+            {
+                var processingJobs = JobStorage.Current.GetMonitoringApi().ProcessingJobs(0, int.MaxValue);
+                processingJobsInQueue = processingJobs.Count();
+            }
+            catch
+            {
+                // If monitoring fails, allow the job to proceed
+                processingJobsInQueue = 0;
+            }
 
-            if (processingJobs >= MaxConcurrentExecutions)
+            if (processingJobsInQueue >= MaxConcurrentExecutions)
             {
                 // Delay the job
                 context.CandidateState = new ScheduledState(DateTime.UtcNow.Add(QueueTimeout))

@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.Json;
+using Hangfire;
+using Booklify.API.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +68,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddSwaggerConfiguration();
 builder.Services.AddCorsConfiguration(builder.Configuration);
 builder.Services.AddJwtConfiguration(builder.Configuration);
+builder.Services.AddHangfireServices(builder.Configuration);
 
 // Add application and infrastructure services
 builder.Services.AddApplication();
@@ -133,6 +136,15 @@ app.UseRouting();
 app.UseJwtMiddleware();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Configure Hangfire dashboard with authorization
+app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthorizationFilter() }
+});
+
+// Initialize Hangfire recurring jobs
+app.Services.UseHangfireConfiguration();
 
 // Finally map the controllers
 app.MapControllers();

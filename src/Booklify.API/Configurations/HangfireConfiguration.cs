@@ -61,7 +61,7 @@ public static class HangfireConfiguration
             .UseRecommendedSerializerSettings()
             .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
             {
-                PrepareSchemaIfNecessary = false,
+                PrepareSchemaIfNecessary = true,
                 CommandBatchMaxTimeout = TimeSpan.FromSeconds(commandBatchMaxTimeout),
                 SlidingInvisibilityTimeout = TimeSpan.FromSeconds(slidingInvisibilityTimeout),
                 QueuePollInterval = TimeSpan.FromSeconds(queuePollInterval),

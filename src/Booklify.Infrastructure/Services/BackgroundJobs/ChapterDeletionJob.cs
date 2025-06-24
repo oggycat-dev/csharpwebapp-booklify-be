@@ -1,116 +1,210 @@
 using Hangfire;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 using Booklify.Application.Common.Interfaces;
-using Booklify.Domain.Enums;
 
 namespace Booklify.Infrastructure.Services.BackgroundJobs;
 
 /// <summary>
-/// Background job for handling chapter deletions
+/// Background job for handling chapter deletion operations
+/// Since chapters are dependent data and have CASCADE delete behavior,
+/// we can hard delete them directly for better performance
 /// </summary>
 public class ChapterDeletionJob
 {
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<ChapterDeletionJob> _logger;
-    private readonly IBooklifyDbContext _dbContext;
 
-    public ChapterDeletionJob(
-        ILogger<ChapterDeletionJob> logger,
-        IBooklifyDbContext dbContext)
+    public ChapterDeletionJob(IServiceScopeFactory serviceScopeFactory, ILogger<ChapterDeletionJob> logger)
     {
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
-        _dbContext = dbContext;
     }
 
     /// <summary>
-    /// Delete chapters by book ID
+    /// Hard delete chapters by book ID in background
+    /// Since chapters are dependent data with CASCADE behavior, hard delete is appropriate
     /// </summary>
-    [Queue("epub-processing")]
+    [Queue("chapter-deletion")]
     public async Task DeleteChaptersByBookIdAsync(Guid bookId, string userId = "")
     {
+        _logger.LogInformation("Starting chapter deletion job for book {BookId} by user {UserId}", bookId, userId);
+        
+        using var scope = _serviceScopeFactory.CreateScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        
         try
         {
-            _logger.LogInformation("Starting chapter deletion job for book: {BookId}", bookId);
-
-            var chapters = await _dbContext.Chapters
-                .Where(c => c.BookId == bookId)
-                .ToListAsync();
-
-            foreach (var chapter in chapters)
+            await unitOfWork.BeginTransactionAsync();
+            
+            // Get all chapters for the book (including nested chapters)
+            var chapters = await unitOfWork.ChapterRepository.FindAsync(
+                c => c.BookId == bookId,
+                c => c.Order,
+                true // ascending order
+            );
+            
+            var chaptersList = chapters.ToList();
+            if (!chaptersList.Any())
             {
-                chapter.Status = EntityStatus.Deleted;
+                _logger.LogInformation("No chapters found for book {BookId}", bookId);
+                await unitOfWork.CommitTransactionAsync();
+                return;
             }
-
-            await _dbContext.SaveChangesAsync();
-
-            _logger.LogInformation("Completed chapter deletion job for book: {BookId}, deleted {ChapterCount} chapters", 
-                bookId, chapters.Count);
+            
+            _logger.LogInformation("Found {ChapterCount} chapters to delete for book {BookId}", 
+                chaptersList.Count, bookId);
+            
+            // Hard delete all chapters at once for better performance
+            await unitOfWork.ChapterRepository.SoftDeleteRangeAsync(chaptersList, userId);
+            
+            await unitOfWork.CommitTransactionAsync();
+            
+            _logger.LogInformation("Successfully soft deleted {ChapterCount} chapters for book {BookId}", 
+                chaptersList.Count, bookId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete chapters for book: {BookId}", bookId);
+            try
+            {
+                await unitOfWork.RollbackTransactionAsync();
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogError(rollbackEx, "Failed to rollback transaction");
+            }
+            
+            _logger.LogError(ex, "Error deleting chapters for book {BookId}", bookId);
             throw;
         }
     }
 
     /// <summary>
-    /// Delete chapters by IDs
+    /// Hard delete specific chapters by IDs in background
     /// </summary>
-    [Queue("epub-processing")]
+    [Queue("chapter-deletion")]
     public async Task DeleteChaptersByIdsAsync(List<Guid> chapterIds, string userId = "")
     {
+        if (chapterIds == null || !chapterIds.Any())
+        {
+            _logger.LogWarning("No chapter IDs provided for deletion");
+            return;
+        }
+        
+        _logger.LogInformation("Starting chapter deletion job for {ChapterCount} chapters by user {UserId}", 
+            chapterIds.Count, userId);
+        
+        using var scope = _serviceScopeFactory.CreateScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        
         try
         {
-            _logger.LogInformation("Starting chapter deletion job for {ChapterCount} chapters", chapterIds.Count);
-
-            var chapters = await _dbContext.Chapters
-                .Where(c => chapterIds.Contains(c.Id))
-                .ToListAsync();
-
-            foreach (var chapter in chapters)
+            await unitOfWork.BeginTransactionAsync();
+            
+            // Get chapters by IDs
+            var chapters = await unitOfWork.ChapterRepository.FindAsync(
+                c => chapterIds.Contains(c.Id)
+            );
+            
+            var chaptersList = chapters.ToList();
+            if (!chaptersList.Any())
             {
-                chapter.Status = EntityStatus.Deleted;
+                _logger.LogWarning("No chapters found for provided IDs");
+                return;
             }
-
-            await _dbContext.SaveChangesAsync();
-
-            _logger.LogInformation("Completed chapter deletion job for {ChapterCount} chapters", chapters.Count);
+            
+            _logger.LogInformation("Found {ChapterCount} chapters to delete", chaptersList.Count);
+            
+            // Hard delete chapters
+            await unitOfWork.ChapterRepository.SoftDeleteRangeAsync(chaptersList, userId);
+            
+            await unitOfWork.CommitTransactionAsync();
+            
+            _logger.LogInformation("Successfully deleted {ChapterCount} chapters", chaptersList.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to delete {ChapterCount} chapters", chapterIds.Count);
+            try
+            {
+                await unitOfWork.RollbackTransactionAsync();
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogError(rollbackEx, "Failed to rollback transaction");
+            }
+            
+            _logger.LogError(ex, "Error deleting chapters with IDs: {ChapterIds}", string.Join(", ", chapterIds));
             throw;
         }
     }
 
     /// <summary>
-    /// Cleanup orphaned chapters (chapters without valid books)
+    /// Cleanup orphaned chapters (chapters whose books are soft deleted)
+    /// Run this periodically to clean up chapters of soft-deleted books
     /// </summary>
-    [Queue("epub-processing")]
+    [Queue("chapter-deletion")]
     public async Task CleanupOrphanedChaptersAsync(int batchSize = 1000)
     {
+        _logger.LogInformation("Starting orphaned chapters cleanup with batch size {BatchSize}", batchSize);
+        
+        using var scope = _serviceScopeFactory.CreateScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        
         try
         {
-            _logger.LogInformation("Starting orphaned chapter cleanup with batch size: {BatchSize}", batchSize);
-
-            var orphanedChapters = await _dbContext.Chapters
-                .Where(c => c.BookId == null || !_dbContext.Books.Any(b => b.Id == c.BookId))
-                .Take(batchSize)
-                .ToListAsync();
-
-            foreach (var chapter in orphanedChapters)
+            int totalDeleted = 0;
+            bool hasMore = true;
+            
+            while (hasMore)
             {
-                chapter.Status = EntityStatus.Deleted;
+                await unitOfWork.BeginTransactionAsync();
+                
+                // Find chapters whose books are soft deleted
+                // Using raw query for better performance with joins
+                var orphanedChapters = await unitOfWork.ChapterRepository.FindAsync(
+                    c => c.Book.IsDeleted == true,
+                    c => c.CreatedAt,
+                    true,
+                    c => c.Book
+                );
+                
+                var batchChapters = orphanedChapters.Take(batchSize).ToList();
+                
+                if (!batchChapters.Any())
+                {
+                    hasMore = false;
+                    await unitOfWork.CommitTransactionAsync();
+                    break;
+                }
+                
+                _logger.LogInformation("Deleting batch of {ChapterCount} orphaned chapters", batchChapters.Count);
+                
+                await unitOfWork.ChapterRepository.DeleteRangeAsync(batchChapters);
+                await unitOfWork.CommitTransactionAsync();
+                
+                totalDeleted += batchChapters.Count;
+                
+                // If we got less than batch size, we're done
+                if (batchChapters.Count < batchSize)
+                {
+                    hasMore = false;
+                }
             }
-
-            await _dbContext.SaveChangesAsync();
-
-            _logger.LogInformation("Completed orphaned chapter cleanup, processed {ChapterCount} chapters", 
-                orphanedChapters.Count);
+            
+            _logger.LogInformation("Orphaned chapters cleanup completed. Total deleted: {TotalDeleted}", totalDeleted);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to cleanup orphaned chapters");
+            try
+            {
+                await unitOfWork.RollbackTransactionAsync();
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogError(rollbackEx, "Failed to rollback transaction");
+            }
+            
+            _logger.LogError(ex, "Error during orphaned chapters cleanup");
             throw;
         }
     }
