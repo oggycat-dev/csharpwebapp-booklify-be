@@ -63,12 +63,12 @@ public class LocalStorageService : IStorageService
         using var fileStreamOutput = new FileStream(filePath, FileMode.Create);
         await fileStream.CopyToAsync(fileStreamOutput);
 
-        // Return relative path for URL generation
+        // Return relative path instead of full URL
         var relativePath = folder != null 
             ? Path.Combine(folder, uniqueFileName).Replace("\\", "/")
             : uniqueFileName;
             
-        return GetFileUrl(relativePath);
+        return relativePath; // Return relative path instead of full URL
     }
 
     public async Task<string> UploadFileAsync(byte[] fileBytes, string fileName, string contentType, string? folder = null)
@@ -100,11 +100,11 @@ public class LocalStorageService : IStorageService
         return await UploadEpubFileAsync(stream, fileName, contentType, categoryName);
     }
 
-    public Task<bool> DeleteFileAsync(string fileUrl)
+    public Task<bool> DeleteFileAsync(string fileUrlOrPath)
     {
         try
         {
-            var filePath = GetFilePathFromUrl(fileUrl);
+            var filePath = GetFilePathFromUrl(fileUrlOrPath);
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
@@ -118,11 +118,11 @@ public class LocalStorageService : IStorageService
         }
     }
 
-    public Task<bool> FileExistsAsync(string fileUrl)
+    public Task<bool> FileExistsAsync(string fileUrlOrPath)
     {
         try
         {
-            var filePath = GetFilePathFromUrl(fileUrl);
+            var filePath = GetFilePathFromUrl(fileUrlOrPath);
             return Task.FromResult(File.Exists(filePath));
         }
         catch
@@ -135,14 +135,14 @@ public class LocalStorageService : IStorageService
     {
         var baseUrl = _storageSettings.BaseUrl.TrimEnd('/');
         var cleanPath = filePath.TrimStart('/').Replace("\\", "/");
-        return $"{baseUrl}/uploads/{cleanPath}";
+        return $"{baseUrl}/{cleanPath}";
     }
 
-    public async Task<Stream?> DownloadFileAsync(string fileUrl)
+    public async Task<Stream?> DownloadFileAsync(string fileUrlOrPath)
     {
         try
         {
-            var filePath = GetFilePathFromUrl(fileUrl);
+            var filePath = GetFilePathFromUrl(fileUrlOrPath);
             if (File.Exists(filePath))
             {
                 var fileBytes = await File.ReadAllBytesAsync(filePath);
@@ -156,11 +156,11 @@ public class LocalStorageService : IStorageService
         }
     }
 
-    public Task<StorageFileInfo?> GetFileInfoAsync(string fileUrl)
+    public Task<StorageFileInfo?> GetFileInfoAsync(string fileUrlOrPath)
     {
         try
         {
-            var filePath = GetFilePathFromUrl(fileUrl);
+            var filePath = GetFilePathFromUrl(fileUrlOrPath);
             if (File.Exists(filePath))
             {
                 var fileInfo = new FileInfo(filePath);
@@ -171,7 +171,7 @@ public class LocalStorageService : IStorageService
                     ContentType = GetContentType(fileInfo.Extension),
                     CreatedAt = fileInfo.CreationTimeUtc,
                     LastModified = fileInfo.LastWriteTimeUtc,
-                    Url = fileUrl
+                    Url = fileUrlOrPath.StartsWith(_storageSettings.BaseUrl) ? fileUrlOrPath : GetFileUrl(fileUrlOrPath)
                 });
             }
             return Task.FromResult<StorageFileInfo?>(null);
@@ -182,12 +182,33 @@ public class LocalStorageService : IStorageService
         }
     }
 
-    private string GetFilePathFromUrl(string fileUrl)
+    private string GetFilePathFromUrl(string fileUrlOrPath)
     {
-        // Extract relative path from URL
+        // If it's already a relative path (no base URL), use it directly
         var baseUrl = _storageSettings.BaseUrl.TrimEnd('/');
-        var relativePath = fileUrl.Replace(baseUrl, "").Replace("/uploads/", "").TrimStart('/');
+        string relativePath;
+        
+        if (fileUrlOrPath.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            // It's a full URL, extract relative path
+            relativePath = fileUrlOrPath.Substring(baseUrl.Length).TrimStart('/');
+        }
+        else
+        {
+            // It's already a relative path
+            relativePath = fileUrlOrPath.TrimStart('/');
+        }
+        
         return Path.Combine(_uploadsPath, relativePath.Replace("/", "\\"));
+    }
+
+    /// <summary>
+    /// Convert relative path to absolute file system path
+    /// </summary>
+    private string GetAbsoluteFilePath(string relativePath)
+    {
+        var cleanPath = relativePath.TrimStart('/');
+        return Path.Combine(_uploadsPath, cleanPath.Replace("/", "\\"));
     }
 
     private static string GetContentType(string extension)

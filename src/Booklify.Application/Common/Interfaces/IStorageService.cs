@@ -12,7 +12,7 @@ public interface IStorageService
     /// <param name="fileName">Name of the file</param>
     /// <param name="contentType">Content type of the file</param>
     /// <param name="folder">Optional folder path</param>
-    /// <returns>URL of the uploaded file</returns>
+    /// <returns>Relative path of the uploaded file</returns>
     Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, string? folder = null);
     
     /// <summary>
@@ -22,7 +22,7 @@ public interface IStorageService
     /// <param name="fileName">Name of the file</param>
     /// <param name="contentType">Content type of the file</param>
     /// <param name="folder">Optional folder path</param>
-    /// <returns>URL of the uploaded file</returns>
+    /// <returns>Relative path of the uploaded file</returns>
     Task<string> UploadFileAsync(byte[] fileBytes, string fileName, string contentType, string? folder = null);
     
     /// <summary>
@@ -32,7 +32,7 @@ public interface IStorageService
     /// <param name="fileName">Name of the EPUB file</param>
     /// <param name="contentType">Content type (should be application/epub+zip)</param>
     /// <param name="categoryName">Optional book category name for folder structure</param>
-    /// <returns>URL of the uploaded EPUB file</returns>
+    /// <returns>Relative path of the uploaded EPUB file</returns>
     Task<string> UploadEpubFileAsync(Stream fileStream, string fileName, string contentType, string? categoryName = null);
     
     /// <summary>
@@ -42,41 +42,41 @@ public interface IStorageService
     /// <param name="fileName">Name of the EPUB file</param>
     /// <param name="contentType">Content type (should be application/epub+zip)</param>
     /// <param name="categoryName">Optional book category name for folder structure</param>
-    /// <returns>URL of the uploaded EPUB file</returns>
+    /// <returns>Relative path of the uploaded EPUB file</returns>
     Task<string> UploadEpubFileAsync(byte[] fileBytes, string fileName, string contentType, string? categoryName = null);
     
     /// <summary>
     /// Delete a file from storage
     /// </summary>
-    /// <param name="fileUrl">URL or path of the file to delete</param>
+    /// <param name="fileUrl">URL or relative path of the file to delete</param>
     /// <returns>True if deletion was successful</returns>
     Task<bool> DeleteFileAsync(string fileUrl);
     
     /// <summary>
     /// Check if a file exists in storage
     /// </summary>
-    /// <param name="fileUrl">URL or path of the file</param>
+    /// <param name="fileUrl">URL or relative path of the file</param>
     /// <returns>True if file exists</returns>
     Task<bool> FileExistsAsync(string fileUrl);
     
     /// <summary>
-    /// Get the public URL for a file
+    /// Get the public URL for a file from its relative path
     /// </summary>
-    /// <param name="filePath">Path of the file</param>
+    /// <param name="filePath">Relative path of the file</param>
     /// <returns>Public URL of the file</returns>
     string GetFileUrl(string filePath);
     
     /// <summary>
     /// Download a file from storage
     /// </summary>
-    /// <param name="fileUrl">URL or path of the file</param>
+    /// <param name="fileUrl">URL or relative path of the file</param>
     /// <returns>File stream</returns>
     Task<Stream?> DownloadFileAsync(string fileUrl);
     
     /// <summary>
     /// Get file information
     /// </summary>
-    /// <param name="fileUrl">URL or path of the file</param>
+    /// <param name="fileUrl">URL or relative path of the file</param>
     /// <returns>File metadata</returns>
     Task<StorageFileInfo?> GetFileInfoAsync(string fileUrl);
 }

@@ -65,7 +65,7 @@ public class AmazonS3StorageService : IStorageService
             
             if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
             {
-                return GetFileUrl(key);
+                return key; // Return relative path instead of full URL
             }
             
             throw new InvalidOperationException($"Failed to upload file to S3. Status: {response.HttpStatusCode}");
@@ -111,11 +111,11 @@ public class AmazonS3StorageService : IStorageService
         return await UploadEpubFileAsync(stream, fileName, contentType, categoryName);
     }
 
-    public async Task<bool> DeleteFileAsync(string fileUrl)
+    public async Task<bool> DeleteFileAsync(string fileUrlOrPath)
     {
         try
         {
-            var key = GetKeyFromUrl(fileUrl);
+            var key = GetKeyFromUrl(fileUrlOrPath);
             
             var request = new DeleteObjectRequest
             {
@@ -132,11 +132,11 @@ public class AmazonS3StorageService : IStorageService
         }
     }
 
-    public async Task<bool> FileExistsAsync(string fileUrl)
+    public async Task<bool> FileExistsAsync(string fileUrlOrPath)
     {
         try
         {
-            var key = GetKeyFromUrl(fileUrl);
+            var key = GetKeyFromUrl(fileUrlOrPath);
             
             var request = new GetObjectMetadataRequest
             {
@@ -159,6 +159,15 @@ public class AmazonS3StorageService : IStorageService
 
     public string GetFileUrl(string filePath)
     {
+        // Use configured BaseUrl if available, otherwise fallback to S3 URL generation
+        if (!string.IsNullOrEmpty(_storageSettings.BaseUrl))
+        {
+            var baseUrl = _storageSettings.BaseUrl.TrimEnd('/');
+            var relativePath = filePath.TrimStart('/');
+            return $"{baseUrl}/{relativePath}";
+        }
+        
+        // Fallback to S3 URL generation if BaseUrl is not configured
         var bucketName = _storageSettings.AmazonS3.BucketName;
         var region = _storageSettings.AmazonS3.Region;
         var protocol = _storageSettings.AmazonS3.UseHttps ? "https" : "http";
@@ -167,11 +176,11 @@ public class AmazonS3StorageService : IStorageService
         return $"{protocol}://{bucketName}.s3.{region}.amazonaws.com/{cleanPath}";
     }
 
-    public async Task<Stream?> DownloadFileAsync(string fileUrl)
+    public async Task<Stream?> DownloadFileAsync(string fileUrlOrPath)
     {
         try
         {
-            var key = GetKeyFromUrl(fileUrl);
+            var key = GetKeyFromUrl(fileUrlOrPath);
             
             var request = new GetObjectRequest
             {
@@ -194,11 +203,11 @@ public class AmazonS3StorageService : IStorageService
         }
     }
 
-    public async Task<StorageFileInfo?> GetFileInfoAsync(string fileUrl)
+    public async Task<StorageFileInfo?> GetFileInfoAsync(string fileUrlOrPath)
     {
         try
         {
-            var key = GetKeyFromUrl(fileUrl);
+            var key = GetKeyFromUrl(fileUrlOrPath);
             
             var request = new GetObjectMetadataRequest
             {
@@ -215,7 +224,7 @@ public class AmazonS3StorageService : IStorageService
                 ContentType = response.Headers.ContentType,
                 CreatedAt = response.LastModified ?? DateTime.UtcNow,
                 LastModified = response.LastModified ?? DateTime.UtcNow,
-                Url = fileUrl
+                Url = IsFullUrl(fileUrlOrPath) ? fileUrlOrPath : GetFileUrl(fileUrlOrPath)
             };
         }
         catch (AmazonS3Exception)
@@ -224,8 +233,16 @@ public class AmazonS3StorageService : IStorageService
         }
     }
 
-    private string GetKeyFromUrl(string fileUrl)
+    private string GetKeyFromUrl(string fileUrlOrPath)
     {
+        // Check if it matches the configured BaseUrl first
+        if (!string.IsNullOrEmpty(_storageSettings.BaseUrl) && 
+            fileUrlOrPath.StartsWith(_storageSettings.BaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            var baseUrl = _storageSettings.BaseUrl.TrimEnd('/');
+            return fileUrlOrPath.Substring(baseUrl.Length + 1); // +1 for the trailing slash
+        }
+        
         var bucketName = _storageSettings.AmazonS3.BucketName;
         var region = _storageSettings.AmazonS3.Region;
         
@@ -240,14 +257,14 @@ public class AmazonS3StorageService : IStorageService
 
         foreach (var pattern in patterns)
         {
-            if (fileUrl.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+            if (fileUrlOrPath.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
             {
-                return fileUrl.Substring(pattern.Length);
+                return fileUrlOrPath.Substring(pattern.Length);
             }
         }
 
-        // If no pattern matches, assume it's already a key
-        return fileUrl.TrimStart('/');
+        // If no pattern matches, assume it's already a relative path (key)
+        return fileUrlOrPath.TrimStart('/');
     }
 
     /// <summary>
@@ -310,5 +327,37 @@ public class AmazonS3StorageService : IStorageService
         sanitized = sanitized.Trim('-');
         
         return string.IsNullOrEmpty(sanitized) ? "uncategorized" : sanitized;
+    }
+
+    private bool IsFullUrl(string fileUrl)
+    {
+        // Check if it matches the configured BaseUrl
+        if (!string.IsNullOrEmpty(_storageSettings.BaseUrl) && 
+            fileUrl.StartsWith(_storageSettings.BaseUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        
+        var bucketName = _storageSettings.AmazonS3.BucketName;
+        var region = _storageSettings.AmazonS3.Region;
+        
+        // Handle different S3 URL formats
+        var patterns = new[]
+        {
+            $"https://{bucketName}.s3.{region}.amazonaws.com/",
+            $"http://{bucketName}.s3.{region}.amazonaws.com/",
+            $"https://s3.{region}.amazonaws.com/{bucketName}/",
+            $"http://s3.{region}.amazonaws.com/{bucketName}/"
+        };
+
+        foreach (var pattern in patterns)
+        {
+            if (fileUrl.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 } 
