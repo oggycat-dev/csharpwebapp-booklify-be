@@ -34,6 +34,11 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
     public DbSet<Book> Books { get; set; }
     public DbSet<BookCategory> BookCategories { get; set; }
     public DbSet<Chapter> Chapters { get; set; }
+    
+    // Subscription and Payment
+    public DbSet<Subscription> Subscriptions { get; set; }
+    public DbSet<UserSubscription> UserSubscriptions { get; set; }
+    public DbSet<Payment> Payments { get; set; }
 
     // Seeding status tracking
     public DbSet<SeedTracking> SeedTrackings { get; set; }
@@ -214,6 +219,90 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
             // Composite indexes for common queries
             entity.HasIndex(b => new { b.ApprovalStatus, b.Status, b.IsPremium });
             entity.HasIndex(b => new { b.CategoryId, b.ApprovalStatus, b.Status });
+        });
+
+        // Configure Subscription
+        builder.Entity<Subscription>(entity =>
+        {
+            entity.ToTable("Subscriptions");
+            
+            // Required fields
+            entity.Property(s => s.Name).IsRequired();
+            entity.Property(s => s.Description).IsRequired();
+            entity.Property(s => s.Price).HasPrecision(18, 2);
+            
+            // Convert Status enum to int
+            entity.Property(s => s.Status)
+                .HasConversion<int>();
+            
+            // Add index for Name (unique)
+            entity.HasIndex(s => s.Name)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+                
+            // Add index for Status
+            entity.HasIndex(s => s.Status);
+        });
+
+        // Configure UserSubscription
+        builder.Entity<UserSubscription>(entity =>
+        {
+            entity.ToTable("UserSubscriptions");
+            
+            // Configure relationship with UserProfile
+            entity.HasOne(us => us.User)
+                .WithMany(u => u.UserSubscriptions)
+                .HasForeignKey(us => us.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // Configure relationship with Subscription
+            entity.HasOne(us => us.Subscription)
+                .WithMany(s => s.UserSubscriptions)
+                .HasForeignKey(us => us.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // Convert Status enum to int
+            entity.Property(us => us.Status)
+                .HasConversion<int>();
+            
+            // Add indexes for performance
+            entity.HasIndex(us => us.UserId);
+            entity.HasIndex(us => us.SubscriptionId);
+            entity.HasIndex(us => us.IsActive);
+            entity.HasIndex(us => new { us.StartDate, us.EndDate });
+            
+            // Composite index for common queries
+            entity.HasIndex(us => new { us.UserId, us.IsActive, us.Status });
+        });
+
+        // Configure Payment
+        builder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("Payments");
+            
+            // Configure relationship with UserSubscription
+            entity.HasOne(p => p.UserSubscription)
+                .WithMany(us => us.Payments)
+                .HasForeignKey(p => p.UserSubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // Required fields
+            entity.Property(p => p.PaymentMethod).IsRequired();
+            entity.Property(p => p.Currency).IsRequired();
+            entity.Property(p => p.Amount).HasPrecision(18, 2);
+            
+            // Convert PaymentStatus enum to int
+            entity.Property(p => p.PaymentStatus)
+                .HasConversion<int>();
+            
+            // Add indexes for performance
+            entity.HasIndex(p => p.UserSubscriptionId);
+            entity.HasIndex(p => p.PaymentStatus);
+            entity.HasIndex(p => p.TransactionId);
+            entity.HasIndex(p => p.PaymentDate);
+            
+            // Composite index for common queries
+            entity.HasIndex(p => new { p.PaymentStatus, p.PaymentDate });
         });
 
         // Identity-related configurations

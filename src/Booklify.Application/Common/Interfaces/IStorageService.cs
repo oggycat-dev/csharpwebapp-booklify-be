@@ -26,6 +26,26 @@ public interface IStorageService
     Task<string> UploadFileAsync(byte[] fileBytes, string fileName, string contentType, string? folder = null);
     
     /// <summary>
+    /// Upload EPUB file with specific book category prefix
+    /// </summary>
+    /// <param name="fileStream">EPUB file stream to upload</param>
+    /// <param name="fileName">Name of the EPUB file</param>
+    /// <param name="contentType">Content type (should be application/epub+zip)</param>
+    /// <param name="categoryName">Optional book category name for folder structure</param>
+    /// <returns>URL of the uploaded EPUB file</returns>
+    Task<string> UploadEpubFileAsync(Stream fileStream, string fileName, string contentType, string? categoryName = null);
+    
+    /// <summary>
+    /// Upload EPUB file from byte array with specific book category prefix
+    /// </summary>
+    /// <param name="fileBytes">EPUB file bytes to upload</param>
+    /// <param name="fileName">Name of the EPUB file</param>
+    /// <param name="contentType">Content type (should be application/epub+zip)</param>
+    /// <param name="categoryName">Optional book category name for folder structure</param>
+    /// <returns>URL of the uploaded EPUB file</returns>
+    Task<string> UploadEpubFileAsync(byte[] fileBytes, string fileName, string contentType, string? categoryName = null);
+    
+    /// <summary>
     /// Delete a file from storage
     /// </summary>
     /// <param name="fileUrl">URL or path of the file to delete</param>

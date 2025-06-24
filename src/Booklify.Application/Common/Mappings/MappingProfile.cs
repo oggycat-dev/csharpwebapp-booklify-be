@@ -4,6 +4,7 @@ using Booklify.Domain.Entities.Identity;
 using Booklify.Domain.Entities;
 using Booklify.Application.Common.DTOs.Staff;
 using Booklify.Application.Common.DTOs.BookCategory;
+using Booklify.Application.Common.DTOs.Subscription;
 using Booklify.Domain.Enums;
 using Booklify.Application.Common.DTOs.Book;
 
@@ -244,6 +245,17 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi))
             .ForMember(dest => dest.ParentChapterId, opt => opt.MapFrom(src => src.ParentChapterId))
             .ForMember(dest => dest.ChildChapters, opt => opt.Ignore()); // Will be mapped manually for nested structure
+        // Subscription mappings
+        CreateMap<Domain.Entities.Subscription, SubscriptionResponse>()
+            .ForMember(dest => dest.Features, opt => opt.MapFrom(src => 
+                string.IsNullOrEmpty(src.Features) ? new List<string>() : src.Features.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList()));
+        CreateMap<UserSubscription, UserSubscriptionResponse>()
+            .ForMember(dest => dest.Subscription, opt => opt.MapFrom(src => src.Subscription));
+        
+        // Payment mappings
+        CreateMap<Domain.Entities.Payment, PaymentStatusResponse>()
+            .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.SubscriptionActivated, opt => opt.Ignore());
     }
 
     // Helper method to get display name from user profiles

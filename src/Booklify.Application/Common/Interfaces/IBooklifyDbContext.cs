@@ -17,7 +17,9 @@ namespace Booklify.Application.Common.Interfaces
         DbSet<FileInfo> FileInfos { get; set; }
         DbSet<Book> Books { get; set; }
         DbSet<BookCategory> BookCategories { get; set; }
-        DbSet<Chapter> Chapters { get; set; }
+        DbSet<Subscription> Subscriptions { get; set; }
+        DbSet<UserSubscription> UserSubscriptions { get; set; }
+        DbSet<Payment> Payments { get; set; }
         DbSet<AppUser> IdentityUsers { get; set; }
         DbSet<AppRole> IdentityRoles { get; set; }
         

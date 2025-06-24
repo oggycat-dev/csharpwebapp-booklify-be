@@ -408,6 +408,78 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                         });
                 });
 
+            modelBuilder.Entity("Booklify.Domain.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderResponse")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TransactionId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("UserSubscriptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentDate");
+
+                    b.HasIndex("PaymentStatus");
+
+                    b.HasIndex("TransactionId");
+
+                    b.HasIndex("UserSubscriptionId");
+
+                    b.HasIndex("PaymentStatus", "PaymentDate");
+
+                    b.ToTable("Payments", (string)null);
+                });
+
             modelBuilder.Entity("Booklify.Domain.Entities.StaffProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -502,6 +574,71 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.ToTable("StaffProfiles", (string)null);
                 });
 
+            modelBuilder.Entity("Booklify.Domain.Entities.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Features")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPopular")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("Booklify.Domain.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -578,6 +715,69 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.ToTable("UserProfiles", (string)null);
                 });
 
+            modelBuilder.Entity("Booklify.Domain.Entities.UserSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AutoRenew")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SubscriptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("StartDate", "EndDate");
+
+                    b.HasIndex("UserId", "IsActive", "Status");
+
+                    b.ToTable("UserSubscriptions", (string)null);
+                });
+
             modelBuilder.Entity("Booklify.Infrastructure.Persistence.SeedTracking", b =>
                 {
                     b.Property<Guid>("Id")
@@ -627,6 +827,15 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.Navigation("Book");
 
                     b.Navigation("ParentChapter");
+            modelBuilder.Entity("Booklify.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("Booklify.Domain.Entities.UserSubscription", "UserSubscription")
+                        .WithMany("Payments")
+                        .HasForeignKey("UserSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UserSubscription");
                 });
 
             modelBuilder.Entity("Booklify.Domain.Entities.StaffProfile", b =>
@@ -666,6 +875,23 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
             modelBuilder.Entity("Booklify.Domain.Entities.Book", b =>
                 {
                     b.Navigation("Chapters");
+            modelBuilder.Entity("Booklify.Domain.Entities.UserSubscription", b =>
+                {
+                    b.HasOne("Booklify.Domain.Entities.Subscription", "Subscription")
+                        .WithMany("UserSubscriptions")
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Booklify.Domain.Entities.UserProfile", "User")
+                        .WithMany("UserSubscriptions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Subscription");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Booklify.Domain.Entities.BookCategory", b =>
@@ -684,7 +910,22 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
 
                     b.Navigation("UserProfile");
                 });
+
+            modelBuilder.Entity("Booklify.Domain.Entities.Subscription", b =>
+                {
+                    b.Navigation("UserSubscriptions");
+                });
+
+            modelBuilder.Entity("Booklify.Domain.Entities.UserProfile", b =>
+                {
+                    b.Navigation("UserSubscriptions");
+                });
+
+            modelBuilder.Entity("Booklify.Domain.Entities.UserSubscription", b =>
+                {
+                    b.Navigation("Payments");
+                });
 #pragma warning restore 612, 618
         }
     }
-}
+        }

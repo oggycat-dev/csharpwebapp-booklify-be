@@ -86,6 +86,9 @@ public static class DependencyInjection
         // Configure Storage settings
         services.Configure<StorageSettings>(configuration.GetSection("Storage"));
         
+        // Configure VNPay settings
+        services.Configure<VNPaySettings>(configuration.GetSection("VNPay"));
+        
         // Register repositories
         services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
         services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
@@ -139,6 +142,7 @@ public static class DependencyInjection
         
         // Register Hangfire initialization service
         services.AddHostedService<HangfireInitializationService>();
+        services.AddScoped<IVNPayService, VNPayService>();
             
         return services;
     }

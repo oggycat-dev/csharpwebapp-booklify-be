@@ -56,6 +56,53 @@ public class FileController : ControllerBase
     }
 
     /// <summary>
+    /// Upload EPUB file with automatic categorization
+    /// </summary>
+    /// <param name="file">EPUB file to upload</param>
+    /// <param name="categoryName">Optional category name for folder structure</param>
+    /// <returns>File URL</returns>
+    [HttpPost("upload-epub")]
+    public async Task<IActionResult> UploadEpubFile(IFormFile file, [FromQuery] string? categoryName = null)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file provided");
+
+            // Validate EPUB file
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (extension != ".epub")
+                return BadRequest("Only EPUB files are allowed for this endpoint");
+
+            using var stream = file.OpenReadStream();
+            var fileUrl = await _storageService.UploadEpubFileAsync(stream, file.FileName, file.ContentType, categoryName);
+
+            return Ok(new 
+            { 
+                url = fileUrl, 
+                fileName = file.FileName,
+                category = categoryName ?? "uncategorized",
+                fileType = "epub"
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "EPUB file upload validation failed: {Message}", ex.Message);
+            return BadRequest(ex.Message);
+        }
+        catch (NotImplementedException ex)
+        {
+            _logger.LogError(ex, "Storage service not properly configured: {Message}", ex.Message);
+            return StatusCode(501, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading EPUB file");
+            return StatusCode(500, "Internal server error while uploading EPUB file");
+        }
+    }
+
+    /// <summary>
     /// Delete a file
     /// </summary>
     /// <param name="fileUrl">URL of the file to delete</param>
