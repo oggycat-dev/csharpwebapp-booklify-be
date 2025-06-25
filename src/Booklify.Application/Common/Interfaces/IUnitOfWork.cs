@@ -44,6 +44,11 @@ public interface IUnitOfWork : IDisposable
     IFileInfoRepository FileInfoRepository { get; }
 
     /// <summary>
+    /// The chapter AI result repository
+    /// </summary>
+    IChapterAIResultRepository ChapterAIResultRepository { get; }
+
+    /// <summary>
     /// Begin a transaction
     /// </summary>
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

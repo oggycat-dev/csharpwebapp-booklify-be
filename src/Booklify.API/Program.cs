@@ -71,6 +71,7 @@ builder.Services.AddSwaggerConfiguration();
 builder.Services.AddCorsConfiguration(builder.Configuration);
 builder.Services.AddJwtConfiguration(builder.Configuration);
 builder.Services.AddHangfireServices(builder.Configuration);
+builder.Services.AddGeminiConfiguration(builder.Configuration);
 
 // Add application and infrastructure services
 builder.Services.AddApplication();
@@ -163,6 +164,9 @@ app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
 
 // Initialize Hangfire recurring jobs
 app.Services.UseHangfireConfiguration();
+
+// Validate Gemini configuration
+app.ValidateGeminiConfiguration();
 
 // Finally map the controllers
 app.MapControllers();
