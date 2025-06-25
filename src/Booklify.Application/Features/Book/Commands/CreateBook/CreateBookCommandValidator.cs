@@ -42,27 +42,27 @@ public class CreateBookCommandValidator : AbstractValidator<CreateBookCommand>
                     var allowedExtensions = new[] { 
                         ".pdf", ".doc", ".docx", 
                         ".epub", // EPUB support
-                        ".txt"
+                        ".txt", ".mp4", ".avi", ".mov", ".mkv", ".zip", ".rar"
                     };
                     var extension = System.IO.Path.GetExtension(file.FileName).ToLowerInvariant();
                     return allowedExtensions.Contains(extension);
                 })
-                .WithMessage("Định dạng tệp không được hỗ trợ. Định dạng hỗ trợ: PDF, Word, EPUB, TXT");
+                .WithMessage("Định dạng tệp không được hỗ trợ. Định dạng hỗ trợ: PDF, Word, EPUB, TXT, Video (MP4, AVI, MOV, MKV), Archive (ZIP, RAR)");
 
             RuleFor(x => x.Request.File)
                 .Must(file => {
                     var extension = System.IO.Path.GetExtension(file.FileName).ToLowerInvariant();
-                    var documentExtensions = new[] { ".pdf", ".doc", ".docx", ".txt", ".epub" };
+                    var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".txt", ".epub", ".mp4", ".avi", ".mov", ".mkv", ".zip", ".rar" };
                     
-                    // For document files (including EPUB), maintain 50MB limit
-                    if (documentExtensions.Contains(extension))
+                    // For all allowed file types, support up to 500MB
+                    if (allowedExtensions.Contains(extension))
                     {
-                        return file.Length <= 50 * 1024 * 1024; // 50MB limit for documents
+                        return file.Length <= 500 * 1024 * 1024; // 500MB limit
                     }
                     
                     return false; // Unknown file type
                 })
-                .WithMessage("Kích thước tệp không được vượt quá 50MB");
+                .WithMessage("Kích thước tệp không được vượt quá 500MB");
         });
     }
 } 
