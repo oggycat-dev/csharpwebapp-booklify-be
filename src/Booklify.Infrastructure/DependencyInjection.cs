@@ -89,6 +89,8 @@ public static class DependencyInjection
         // Configure VNPay settings
         services.Configure<VNPaySettings>(configuration.GetSection("VNPay"));
         
+        // Gemini configuration is now handled in API layer
+        
         // Register repositories
         services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
         services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
@@ -96,6 +98,7 @@ public static class DependencyInjection
         services.AddScoped<IChapterRepository, ChapterRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IFileInfoRepository, FileInfoRepository>();
+        services.AddScoped<IChapterAIResultRepository, ChapterAIResultRepository>();
 
         // Register Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -136,6 +139,10 @@ public static class DependencyInjection
         services.AddScoped<IEPubService, EPubService>();
         services.AddScoped<IFileBackgroundService, FileBackgroundService>();
         services.AddScoped<IFileService, FileService>();
+        
+        // Register Gemini service with HttpClient
+        services.AddHttpClient<GeminiService>();
+        services.AddScoped<ITextAIService, GeminiService>();
         
         // Background jobs are registered in HangfireConfiguration
         

@@ -46,7 +46,11 @@ public enum ErrorCode
     FileNotFound = 6002,
     StorageError = 6003,
     InvalidFileType = 6004,
-    FileSizeTooLarge = 6005
+    FileSizeTooLarge = 6005,
+    
+    // AI & External Service Errors
+    FeatureDisabled = 7001,
+    InvalidResponse = 7002
 }
 
 /// <summary>
@@ -99,6 +103,8 @@ public static class ErrorCodeExtensions
             ErrorCode.ExternalServiceError => StatusCodes.Status500InternalServerError,
             ErrorCode.FileUploadFailed => StatusCodes.Status500InternalServerError,
             ErrorCode.StorageError => StatusCodes.Status500InternalServerError,
+            ErrorCode.FeatureDisabled => StatusCodes.Status503ServiceUnavailable,
+            ErrorCode.InvalidResponse => StatusCodes.Status502BadGateway,
             
             _ => StatusCodes.Status500InternalServerError
         };
