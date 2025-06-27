@@ -66,8 +66,13 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             var encodedToken = HttpUtility.UrlEncode(token);
             
-            // Get backend URL for direct API verification
-            var backendUrl = _configuration["BackendUrl"] ?? "https://localhost:7167";
+            // Get backend URL from environment configuration
+            var backendUrl = _configuration["BackendUrl"];
+            if (string.IsNullOrEmpty(backendUrl))
+            {
+                _logger.LogWarning("BackendUrl not configured, using default localhost URL");
+                backendUrl = "http://localhost:5123"; // Match default from EnvironmentConfiguration
+            }
             
             // Create verification link pointing directly to API
             var verificationLink = $"{backendUrl}/api/auth/confirm-email?email={HttpUtility.UrlEncode(user.Email!)}&token={encodedToken}";
