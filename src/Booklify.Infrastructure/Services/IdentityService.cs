@@ -53,6 +53,12 @@ public class IdentityService : IIdentityService
             return Result<AppUser>.Failure("Username or password is incorrect", ErrorCode.InvalidCredentials);
         }
         
+        // Check if email is confirmed
+        if (!user.EmailConfirmed)
+        {
+            return Result<AppUser>.Failure("Please verify your email first", ErrorCode.EmailNotConfirmed);
+        }
+        
         // Verify password
         var result = await _signInManager.CheckPasswordSignInAsync(user, password, false);
         
@@ -134,12 +140,14 @@ public class IdentityService : IIdentityService
     /// </summary>
     public async Task<Result<UserRegistrationResponse>> RegisterUserAsync(UserRegistrationRequest request)
     {
-        // Create identity user
+        // Create identity user - INACTIVE until email confirmed
         var user = new AppUser
         {
             UserName = request.Username,
             Email = request.Email,
             PhoneNumber = request.PhoneNumber,
+            EmailConfirmed = false,  // Must verify email first
+            IsActive = false,        // Account inactive until email verified
         };
         
         var result = await _userManager.CreateAsync(user, request.Password);
