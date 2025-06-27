@@ -7,7 +7,7 @@ using Booklify.Application.Features.BookCategory.Queries.GetBookCategories;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Booklify.API.Controllers;
+namespace Booklify.API.Controllers.User;
 
 /// <summary>
 /// Controller quản lý danh mục sách cho API công khai
@@ -15,7 +15,7 @@ namespace Booklify.API.Controllers;
 [ApiController]
 [Route("api/book-categories")]
 [ApiExplorerSettings(GroupName = "v1")]
-[Configurations.Tags("Public", "BookCategory")]
+[Configurations.Tags("User", "User_BookCategory")]
 [SwaggerTag("API danh mục sách công khai")]
 public class BookCategoryController : ControllerBase
 {
@@ -53,7 +53,7 @@ public class BookCategoryController : ControllerBase
         Summary = "Lấy danh sách danh mục sách",
         Description = "Lấy danh sách danh mục sách với tùy chọn lọc, sắp xếp và phân trang. API công khai, không cần authentication.",
         OperationId = "GetBookCategories",
-        Tags = new[] { "Public", "BookCategory" }
+        Tags = new[] { "User", "User_BookCategory" }
     )]
     public async Task<IActionResult> GetBookCategories(
         [FromQuery] string? name,

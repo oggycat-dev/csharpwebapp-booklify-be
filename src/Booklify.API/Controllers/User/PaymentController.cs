@@ -5,7 +5,7 @@ using Booklify.Application.Common.Interfaces;
 using Booklify.Application.Common.DTOs.Payment;
 using Booklify.Application.Features.Payment.Commands.ProcessPaymentCallback;
 
-namespace Booklify.API.Controllers;
+namespace Booklify.API.Controllers.User;
 
 /// <summary>
 /// Payment management controller

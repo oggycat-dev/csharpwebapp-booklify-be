@@ -19,11 +19,11 @@ namespace Booklify.API.Controllers.Admin;
 /// Admin controller for managing subscription plans
 /// </summary>
 [ApiController]
-[Route("api/admin/[controller]")]
-[ApiExplorerSettings(GroupName = "admin")]
+[Route("api/cms/subscription")]
+[ApiExplorerSettings(GroupName = "v1")]
 [Authorize]
 [AuthorizeRoles("Admin", "Staff")]
-[Configurations.Tags("Admin", "Subscription Management")]
+[Configurations.Tags("Admin", "Admin_Subscription")]
 [SwaggerTag("Admin APIs cho quản lý subscription plans")]
 public class SubscriptionController : ControllerBase
 {
@@ -50,7 +50,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Get all subscription plans",
         Description = "Lấy danh sách tất cả subscription plans với filtering và pagination",
         OperationId = "AdminGetAllSubscriptions",
-        Tags = new[] { "Admin", "Subscription Management" }
+        Tags = new[] { "Admin", "Admin_Subscription" }
     )]
     public async Task<IActionResult> GetAllSubscriptions([FromQuery] SubscriptionFilterModel filter)
     {
@@ -87,7 +87,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Get subscription plan by ID",
         Description = "Lấy chi tiết subscription plan theo ID",
         OperationId = "AdminGetSubscriptionById",
-        Tags = new[] { "Admin", "Subscription Management" }
+        Tags = new[] { "Admin", "Admin_Subscription" }
     )]
     public async Task<IActionResult> GetSubscriptionById(Guid id)
     {
@@ -124,7 +124,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Create subscription plan",
         Description = "Tạo subscription plan mới",
         OperationId = "AdminCreateSubscription",
-        Tags = new[] { "Admin", "Subscription Management" }
+        Tags = new[] { "Admin", "Admin_Subscription" }
     )]
     public async Task<IActionResult> CreateSubscription([FromBody] CreateSubscriptionRequest request)
     {
@@ -169,7 +169,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Update subscription plan",
         Description = "Cập nhật subscription plan",
         OperationId = "AdminUpdateSubscription",
-        Tags = new[] { "Admin", "Subscription Management" }
+        Tags = new[] { "Admin", "Admin_Subscription" }
     )]
     public async Task<IActionResult> UpdateSubscription(Guid id, [FromBody] UpdateSubscriptionRequest request)
     {
@@ -213,7 +213,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Delete subscription plan",
         Description = "Xóa subscription plan (soft delete). Không thể xóa nếu có user đang sử dụng.",
         OperationId = "AdminDeleteSubscription",
-        Tags = new[] { "Admin", "Subscription Management" }
+        Tags = new[] { "Admin", "Admin_Subscription" }
     )]
     public async Task<IActionResult> DeleteSubscription(Guid id)
     {
@@ -254,7 +254,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Get subscription statistics",
         Description = "Lấy thống kê về subscription plans",
         OperationId = "AdminGetSubscriptionStatistics",
-        Tags = new[] { "Admin", "Subscription Management" }
+        Tags = new[] { "Admin", "Admin_Subscription" }
     )]
     public async Task<IActionResult> GetSubscriptionStatistics()
     {

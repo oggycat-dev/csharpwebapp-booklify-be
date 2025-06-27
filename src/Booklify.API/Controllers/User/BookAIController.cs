@@ -7,7 +7,7 @@ using Booklify.Application.Common.Models;
 using Booklify.Application.Features.BookAI.Commands.ProcessChapterAI;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Booklify.API.Controllers;
+namespace Booklify.API.Controllers.User;
 
 /// <summary>
 /// Controller for AI processing of book chapters
@@ -16,7 +16,7 @@ namespace Booklify.API.Controllers;
 [Route("api/books")]
 [ApiExplorerSettings(GroupName = "v1")]
 [Authorize]
-[Microsoft.AspNetCore.Http.Tags("BookAI")]
+[Microsoft.AspNetCore.Http.Tags("User", "User_BookAI")]
 [SwaggerTag("API xử lý AI cho chapters của sách")]
 public class BookAIController : ControllerBase
 {
@@ -71,7 +71,7 @@ public class BookAIController : ControllerBase
         Summary = "Xử lý AI cho chương sách",
         Description = "Thực hiện các tác vụ AI (tóm tắt, từ khóa, dịch thuật, flashcard) cho một chương cụ thể",
         OperationId = "ProcessChapterAI",
-        Tags = new[] { "BookAI" }
+        Tags = new[] { "User", "User_BookAI" }
     )]
     public async Task<IActionResult> ProcessChapterAI(
         [FromRoute] Guid bookId,
@@ -107,7 +107,7 @@ public class BookAIController : ControllerBase
         Summary = "Lấy danh sách chương",
         Description = "Lấy danh sách các chương của sách với thông tin cơ bản",
         OperationId = "GetBookChapters",
-        Tags = new[] { "BookAI" }
+        Tags = new[] { "User", "User_BookAI" }
     )]
     public async Task<IActionResult> GetBookChapters([FromRoute] Guid bookId)
     {

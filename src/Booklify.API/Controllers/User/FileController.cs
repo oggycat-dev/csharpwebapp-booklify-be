@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Booklify.Application.Common.Interfaces;
 
-namespace Booklify.API.Controllers;
+namespace Booklify.API.Controllers.User;
 
 /// <summary>
 /// File management controller
