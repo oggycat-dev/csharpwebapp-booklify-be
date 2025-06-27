@@ -1,0 +1,125 @@
+### Variables
+@baseUrl = https://localhost:7128
+@token = {{authToken}}
+
+### Get Auth Token (Login first)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@booklify.com",
+  "password": "Admin123!"
+}
+
+### Test Process Chapter AI - Summary only
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["summary"]
+}
+
+### Test Process Chapter AI - Keywords only  
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["keywords"]
+}
+
+### Test Process Chapter AI - Translation only
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["translation"]
+}
+
+### Test Process Chapter AI - Flashcards only
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["flashcards"]
+}
+
+### Test Process Chapter AI - All actions
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["summary", "keywords", "translation", "flashcards"]
+}
+
+### Test Process Chapter AI - Multiple actions
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["summary", "flashcards"]
+}
+
+### Get Book Chapters
+GET {{baseUrl}}/api/books/{{bookId}}/chapters
+Authorization: Bearer {{token}}
+
+### Test with different chapter index
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/1/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["summary", "keywords"]
+}
+
+### Test Error Cases
+
+### Invalid Book ID
+POST {{baseUrl}}/api/books/00000000-0000-0000-0000-000000000000/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["summary"]
+}
+
+### Invalid Chapter Index (too high)
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/999/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["summary"]
+}
+
+### Invalid Actions
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": ["invalid_action"]
+}
+
+### Empty Actions Array
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "actions": []
+}
+
+### Missing Authorization
+POST {{baseUrl}}/api/books/{{bookId}}/chapters/0/process-ai
+Content-Type: application/json
+
+{
+  "actions": ["summary"]
+} 

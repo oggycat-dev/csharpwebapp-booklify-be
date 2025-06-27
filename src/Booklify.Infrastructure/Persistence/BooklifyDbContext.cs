@@ -35,6 +35,9 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
     public DbSet<BookCategory> BookCategories { get; set; }
     public DbSet<Chapter> Chapters { get; set; }
     
+    // AI-related entities
+    public DbSet<ChapterAIResult> ChapterAIResults { get; set; }
+    
     // Subscription and Payment
     public DbSet<Subscription> Subscriptions { get; set; }
     public DbSet<UserSubscription> UserSubscriptions { get; set; }
@@ -351,6 +354,34 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
             
             // Composite index for common queries
             entity.HasIndex(p => new { p.PaymentStatus, p.PaymentDate });
+        });
+
+        // Configure ChapterAIResult
+        builder.Entity<ChapterAIResult>(entity =>
+        {
+            entity.ToTable("ChapterAIResults");
+            
+            // Configure properties
+            entity.Property(c => c.Summary).IsRequired(false);
+            entity.Property(c => c.Translation).IsRequired(false);
+            entity.Property(c => c.Keywords).IsRequired(false);
+            entity.Property(c => c.Flashcards).IsRequired(false);
+            entity.Property(c => c.AIModel).IsRequired(false).HasMaxLength(50);
+            entity.Property(c => c.ProcessedActions).IsRequired().HasMaxLength(200);
+            
+            // Convert Status enum to int
+            entity.Property(c => c.Status)
+                .HasConversion<int>();
+            
+            // Configure relationship with Chapter
+            entity.HasOne(c => c.Chapter)
+                .WithOne()
+                .HasForeignKey<ChapterAIResult>(c => c.ChapterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Add indexes
+            entity.HasIndex(c => c.ChapterId);
+            entity.HasIndex(c => c.Status);
         });
 
         // Identity-related configurations

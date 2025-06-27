@@ -18,8 +18,8 @@ public class StorageSettings
 public class LocalStorageSettings
 {
     public string RootPath { get; set; } = "wwwroot/uploads";
-    public long MaxFileSize { get; set; } = 10 * 1024 * 1024; // 10MB
-    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub" };
+    public long MaxFileSize { get; set; } = 500 * 1024 * 1024; // 500MB
+    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub", ".mp4", ".avi", ".mov", ".mkv", ".zip", ".rar" };
 }
 
 /// <summary>
@@ -32,8 +32,13 @@ public class AmazonS3Settings
     public string BucketName { get; set; } = string.Empty;
     public string Region { get; set; } = "us-east-1";
     public bool UseHttps { get; set; } = true;
-    public long MaxFileSize { get; set; } = 50 * 1024 * 1024; // 50MB
-    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub" };
+    public long MaxFileSize { get; set; } = 500 * 1024 * 1024; // 500MB
+    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub", ".mp4", ".avi", ".mov", ".mkv", ".zip", ".rar" };
+    
+    // Multipart upload settings
+    public long MultipartThreshold { get; set; } = 100 * 1024 * 1024; // 100MB - files larger than this use multipart
+    public long PartSize { get; set; } = 10 * 1024 * 1024; // 10MB per part
+    public int MaxConcurrentParts { get; set; } = 5; // Max concurrent uploads
 }
 
 /// <summary>
@@ -43,6 +48,6 @@ public class AzureBlobSettings
 {
     public string ConnectionString { get; set; } = string.Empty;
     public string ContainerName { get; set; } = string.Empty;
-    public long MaxFileSize { get; set; } = 50 * 1024 * 1024; // 50MB
-    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub" };
+    public long MaxFileSize { get; set; } = 500 * 1024 * 1024; // 500MB
+    public string[] AllowedExtensions { get; set; } = { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".epub", ".mp4", ".avi", ".mov", ".mkv", ".zip", ".rar" };
 } 

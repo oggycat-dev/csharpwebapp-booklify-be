@@ -47,6 +47,22 @@ public class AmazonS3StorageService : IStorageService
             ? $"{folder.Trim('/')}/{fileName}"
             : fileName;
 
+        // Choose upload method based on file size
+        if (fileStream.Length >= _storageSettings.AmazonS3.MultipartThreshold)
+        {
+            return await UploadLargeFileAsync(fileStream, key, contentType);
+        }
+        else
+        {
+            return await UploadSmallFileAsync(fileStream, key, contentType);
+        }
+    }
+    
+    /// <summary>
+    /// Upload small files using regular PutObject
+    /// </summary>
+    private async Task<string> UploadSmallFileAsync(Stream fileStream, string key, string contentType)
+    {
         var request = new PutObjectRequest
         {
             BucketName = _storageSettings.AmazonS3.BucketName,
@@ -71,6 +87,122 @@ public class AmazonS3StorageService : IStorageService
         catch (AmazonS3Exception ex)
         {
             throw new InvalidOperationException($"S3 upload failed: {ex.Message}", ex);
+        }
+    }
+    
+    /// <summary>
+    /// Upload large files using multipart upload
+    /// </summary>
+    private async Task<string> UploadLargeFileAsync(Stream fileStream, string key, string contentType)
+    {
+        var initiateRequest = new InitiateMultipartUploadRequest
+        {
+            BucketName = _storageSettings.AmazonS3.BucketName,
+            Key = key,
+            ContentType = contentType,
+            ServerSideEncryptionMethod = ServerSideEncryptionMethod.AES256,
+            CannedACL = S3CannedACL.PublicRead
+        };
+
+        try
+        {
+            var initiateResponse = await _s3Client.InitiateMultipartUploadAsync(initiateRequest);
+            var uploadId = initiateResponse.UploadId;
+            
+            var partETags = new List<PartETag>();
+            var partSize = _storageSettings.AmazonS3.PartSize;
+            var fileSize = fileStream.Length;
+            var partNumber = 1;
+            var tasks = new List<Task<PartETag>>();
+            var semaphore = new SemaphoreSlim(_storageSettings.AmazonS3.MaxConcurrentParts);
+
+            for (long currentPosition = 0; currentPosition < fileSize; currentPosition += partSize)
+            {
+                var currentPartSize = Math.Min(partSize, fileSize - currentPosition);
+                var partData = new byte[currentPartSize];
+                
+                fileStream.Position = currentPosition;
+                await fileStream.ReadAsync(partData, 0, (int)currentPartSize);
+                
+                var partNum = partNumber++;
+                
+                // Use semaphore to limit concurrent uploads
+                await semaphore.WaitAsync();
+                
+                var task = UploadPartAsync(partData, partNum, uploadId, key, semaphore);
+                tasks.Add(task);
+            }
+
+            // Wait for all parts to complete
+            var completedParts = await Task.WhenAll(tasks);
+            partETags.AddRange(completedParts);
+
+            // Complete the multipart upload
+            var completeRequest = new CompleteMultipartUploadRequest
+            {
+                BucketName = _storageSettings.AmazonS3.BucketName,
+                Key = key,
+                UploadId = uploadId,
+                PartETags = partETags.OrderBy(p => p.PartNumber).ToList()
+            };
+
+            var completeResponse = await _s3Client.CompleteMultipartUploadAsync(completeRequest);
+            
+            if (completeResponse.HttpStatusCode == System.Net.HttpStatusCode.OK)
+            {
+                return key; // Return relative path instead of full URL
+            }
+            
+            throw new InvalidOperationException($"Failed to complete multipart upload. Status: {completeResponse.HttpStatusCode}");
+        }
+        catch (AmazonS3Exception ex)
+        {
+            // Try to abort the multipart upload if it fails
+            try
+            {
+                var abortRequest = new AbortMultipartUploadRequest
+                {
+                    BucketName = _storageSettings.AmazonS3.BucketName,
+                    Key = key,
+                    UploadId = ex.Message.Contains("UploadId") ? ex.Message : string.Empty
+                };
+                await _s3Client.AbortMultipartUploadAsync(abortRequest);
+            }
+            catch
+            {
+                // Ignore abort errors
+            }
+            
+            throw new InvalidOperationException($"S3 multipart upload failed: {ex.Message}", ex);
+        }
+    }
+    
+    /// <summary>
+    /// Upload a single part of a multipart upload
+    /// </summary>
+    private async Task<PartETag> UploadPartAsync(byte[] partData, int partNumber, string uploadId, string key, SemaphoreSlim semaphore)
+    {
+        try
+        {
+            using var partStream = new MemoryStream(partData);
+            
+            var uploadPartRequest = new UploadPartRequest
+            {
+                BucketName = _storageSettings.AmazonS3.BucketName,
+                Key = key,
+                UploadId = uploadId,
+                PartNumber = partNumber,
+                InputStream = partStream,
+                PartSize = partData.Length
+            };
+
+            var response = await _s3Client.UploadPartAsync(uploadPartRequest);
+            
+            return new PartETag(partNumber, response.ETag);
+        }
+        finally
+        {
+            semaphore.Release();
         }
     }
 
@@ -358,4 +490,4 @@ public class AmazonS3StorageService : IStorageService
 
         return false;
     }
-} 
+}

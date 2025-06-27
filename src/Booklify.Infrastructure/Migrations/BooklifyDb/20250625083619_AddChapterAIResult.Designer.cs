@@ -4,6 +4,7 @@ using Booklify.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Booklify.Infrastructure.Migrations.BooklifyDb
 {
     [DbContext(typeof(BooklifyDbContext))]
-    partial class BooklifyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250625083619_AddChapterAIResult")]
+    partial class AddChapterAIResult
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,9 +30,6 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ApprovalNote")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ApprovalStatus")
                         .HasColumnType("int");
@@ -106,7 +106,9 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                         .IsUnique()
                         .HasFilter("[FilePath] IS NOT NULL");
 
-                    b.HasIndex("ISBN");
+                    b.HasIndex("ISBN")
+                        .IsUnique()
+                        .HasFilter("[ISBN] IS NOT NULL");
 
                     b.HasIndex("IsPremium");
 
@@ -222,19 +224,9 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
 
                     b.HasIndex("BookId");
 
-                    b.HasIndex("Order");
-
                     b.HasIndex("ParentChapterId");
 
-                    b.HasIndex("Status");
-
-                    b.HasIndex("BookId", "Order");
-
-                    b.HasIndex("BookId", "Status");
-
-                    b.HasIndex("ParentChapterId", "Order");
-
-                    b.ToTable("Chapters", (string)null);
+                    b.ToTable("Chapters");
                 });
 
             modelBuilder.Entity("Booklify.Domain.Entities.ChapterAIResult", b =>
@@ -893,13 +885,11 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                 {
                     b.HasOne("Booklify.Domain.Entities.Book", "Book")
                         .WithMany("Chapters")
-                        .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasForeignKey("BookId");
 
                     b.HasOne("Booklify.Domain.Entities.Chapter", "ParentChapter")
                         .WithMany("ChildChapters")
-                        .HasForeignKey("ParentChapterId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ParentChapterId");
 
                     b.Navigation("Book");
 

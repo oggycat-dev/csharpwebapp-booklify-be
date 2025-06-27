@@ -110,7 +110,7 @@ public static class EnvironmentConfiguration
         builder.Configuration["Storage:LocalStorage:RootPath"] = 
             Environment.GetEnvironmentVariable("LOCAL_STORAGE_ROOT_PATH") ?? "wwwroot/uploads";
         builder.Configuration["Storage:LocalStorage:MaxFileSize"] = 
-            Environment.GetEnvironmentVariable("LOCAL_STORAGE_MAX_FILE_SIZE") ?? "10485760"; // 10MB
+            Environment.GetEnvironmentVariable("LOCAL_STORAGE_MAX_FILE_SIZE") ?? "524288000"; // 500MB
             
         // Amazon S3 Settings
         builder.Configuration["Storage:AmazonS3:AccessKey"] = 
@@ -124,7 +124,15 @@ public static class EnvironmentConfiguration
         builder.Configuration["Storage:AmazonS3:UseHttps"] = 
             Environment.GetEnvironmentVariable("AWS_S3_USE_HTTPS") ?? "true";
         builder.Configuration["Storage:AmazonS3:MaxFileSize"] = 
-            Environment.GetEnvironmentVariable("AWS_S3_MAX_FILE_SIZE") ?? "52428800"; // 50MB
+            Environment.GetEnvironmentVariable("AWS_S3_MAX_FILE_SIZE") ?? "524288000"; // 500MB
+            
+        // S3 Multipart Upload Settings
+        builder.Configuration["Storage:AmazonS3:MultipartThreshold"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_MULTIPART_THRESHOLD") ?? "104857600"; // 100MB
+        builder.Configuration["Storage:AmazonS3:PartSize"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_PART_SIZE") ?? "10485760"; // 10MB
+        builder.Configuration["Storage:AmazonS3:MaxConcurrentParts"] = 
+            Environment.GetEnvironmentVariable("AWS_S3_MAX_CONCURRENT_PARTS") ?? "5";
 
         // VNPay Settings
         builder.Configuration["VNPay:TmnCode"] = 
