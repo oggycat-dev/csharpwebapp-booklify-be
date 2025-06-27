@@ -46,6 +46,10 @@ public static class EnvironmentConfiguration
         builder.Configuration["FrontendUrl"] = 
             Environment.GetEnvironmentVariable("FRONTEND_URL");
             
+        // Backend URL for email verification links
+        builder.Configuration["BackendUrl"] = 
+            Environment.GetEnvironmentVariable("BACKEND_URL") ?? "http://localhost:5123";
+            
         // Load allowed origins for CORS from FRONTEND_URL
         string corsOriginsString = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? string.Empty;
         if (!string.IsNullOrEmpty(corsOriginsString))
@@ -133,6 +137,22 @@ public static class EnvironmentConfiguration
             Environment.GetEnvironmentVariable("AWS_S3_PART_SIZE") ?? "10485760"; // 10MB
         builder.Configuration["Storage:AmazonS3:MaxConcurrentParts"] = 
             Environment.GetEnvironmentVariable("AWS_S3_MAX_CONCURRENT_PARTS") ?? "5";
+
+        // SMTP Email Settings
+        builder.Configuration["Email:Host"] = 
+            Environment.GetEnvironmentVariable("SMTP_HOST") ?? string.Empty;
+        builder.Configuration["Email:Port"] = 
+            Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587";
+        builder.Configuration["Email:UseSsl"] = 
+            Environment.GetEnvironmentVariable("SMTP_USE_SSL") ?? "true";
+        builder.Configuration["Email:Username"] = 
+            Environment.GetEnvironmentVariable("SMTP_USERNAME") ?? string.Empty;
+        builder.Configuration["Email:Password"] = 
+            Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? string.Empty;
+        builder.Configuration["Email:FromEmail"] = 
+            Environment.GetEnvironmentVariable("SMTP_FROM_EMAIL") ?? "noreply@booklify.com";
+        builder.Configuration["Email:FromName"] = 
+            Environment.GetEnvironmentVariable("SMTP_FROM_NAME") ?? "Booklify";
 
         // VNPay Settings
         builder.Configuration["VNPay:TmnCode"] = 

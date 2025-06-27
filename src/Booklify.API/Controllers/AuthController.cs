@@ -6,6 +6,8 @@ using Booklify.Application.Features.Auth.Commands.Login;
 using Booklify.Application.Features.Auth.Commands.Register;
 using Booklify.Application.Features.Auth.Commands.ChangePassword;
 using Booklify.Application.Features.Auth.Commands.Logout;
+using Booklify.Application.Features.Auth.Commands.ConfirmEmail;
+using Booklify.Application.Features.Auth.Commands.ResendEmailConfirmation;
 using Booklify.Application.Features.Auth.Queries.ReAuthenticate;
 using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Auth;
@@ -221,4 +223,90 @@ public class AuthController : ControllerBase
             
         return Ok(result);
     }
+
+    /// <summary>
+    /// Xác thực email
+    /// </summary>
+    /// <remarks>
+    /// Xác thực email thông qua token được gửi trong email.
+    /// API này được gọi khi người dùng nhấn vào link xác thực trong email.
+    /// 
+    /// Ví dụ URL từ email:
+    ///     GET /api/auth/confirm-email?email=user@example.com&amp;token=ABC123...
+    /// </remarks>
+    /// <param name="email">Email của người dùng</param>
+    /// <param name="token">Token xác thực từ email</param>
+    /// <returns>Kết quả xác thực email</returns>
+    /// <response code="200">Xác thực email thành công</response>
+    /// <response code="400">Token không hợp lệ hoặc hết hạn</response>
+    /// <response code="404">Người dùng không tồn tại</response>
+    [HttpGet("confirm-email")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(Result), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Xác thực email",
+        Description = "API xác thực email thông qua token",
+        OperationId = "User_ConfirmEmail",
+        Tags = new[] { "User", "User_Auth" }
+    )]
+    public async Task<IActionResult> ConfirmEmail(string email, string token)
+    {
+        var command = new ConfirmEmailCommand(email, token);
+        var result = await _mediator.Send(command);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gửi lại email xác thực
+    /// </summary>
+    /// <remarks>
+    /// Gửi lại email xác thực cho người dùng chưa xác thực email.
+    /// 
+    /// Mẫu request:
+    /// 
+    ///     POST /api/auth/resend-email-confirmation
+    ///     {
+    ///        "email": "user@example.com"
+    ///     }
+    /// </remarks>
+    /// <param name="request">Email để gửi lại xác thực</param>
+    /// <returns>Kết quả gửi email</returns>
+    /// <response code="200">Gửi email thành công</response>
+    /// <response code="400">Email đã được xác thực hoặc không hợp lệ</response>
+    /// <response code="500">Lỗi gửi email</response>
+    [HttpPost("resend-email-confirmation")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(Result), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
+    [ProducesResponseType(typeof(Result), 500)]
+    [SwaggerOperation(
+        Summary = "Gửi lại email xác thực",
+        Description = "API gửi lại email xác thực cho người dùng",
+        OperationId = "User_ResendEmailConfirmation",
+        Tags = new[] { "User", "User_Auth" }
+    )]
+    public async Task<IActionResult> ResendEmailConfirmation([FromBody] ResendEmailRequest request)
+    {
+        var command = new ResendEmailConfirmationCommand(request.Email);
+        var result = await _mediator.Send(command);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+}
+
+/// <summary>
+/// Request model for resending email confirmation
+/// </summary>
+public class ResendEmailRequest
+{
+    public string Email { get; set; } = string.Empty;
 } 

@@ -13,6 +13,7 @@ using Booklify.Infrastructure.Repositories;
 using Amazon.S3;
 using Booklify.Infrastructure.Services.BackgroundJobs;
 
+
 namespace Booklify.Infrastructure;
 
 /// <summary>
@@ -71,14 +72,20 @@ public static class DependencyInjection
             options.Lockout.MaxFailedAccessAttempts = 5;
             
             // User settings
-            options.User.RequireUniqueEmail = false;
+            options.User.RequireUniqueEmail = true;  // Changed to true for email verification
             
-            // SignIn settings
-            options.SignIn.RequireConfirmedEmail = false;
+            // SignIn settings  
+            options.SignIn.RequireConfirmedEmail = true;   // Changed to true for email verification
             options.SignIn.RequireConfirmedPhoneNumber = false;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
+        
+        // Configure email token lifespan (24 hours)
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+        {
+            options.TokenLifespan = TimeSpan.FromHours(24);
+        });
         
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
@@ -88,6 +95,9 @@ public static class DependencyInjection
         
         // Configure VNPay settings
         services.Configure<VNPaySettings>(configuration.GetSection("VNPay"));
+        
+        // Configure Email settings
+        services.Configure<EmailSettings>(configuration.GetSection("Email"));
         
         // Gemini configuration is now handled in API layer
         
@@ -150,6 +160,9 @@ public static class DependencyInjection
         // Register Hangfire initialization service
         services.AddHostedService<HangfireInitializationService>();
         services.AddScoped<IVNPayService, VNPayService>();
+        
+        // Register Email service
+        services.AddScoped<IEmailService, EmailService>();
             
         return services;
     }
