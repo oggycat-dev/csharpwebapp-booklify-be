@@ -98,5 +98,11 @@ yarn-error.log*
 *.mdf
 *.ldf
 *.ndf 
+
+# Upload files - ignore user uploaded content
+**/wwwroot/uploads/
+**/uploads/
+uploads/
+
 /src/Booklify.API/Properties/PublishProfiles
 /src/Booklify.API/Properties/ServiceDependencies

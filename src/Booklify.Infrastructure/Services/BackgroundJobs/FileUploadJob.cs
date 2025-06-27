@@ -7,6 +7,7 @@ using Booklify.Application.Common.Interfaces;
 using Booklify.Application.Common.Models;
 using Booklify.Domain.Entities;
 using Booklify.Domain.Enums;
+using Booklify.Domain.Commons;
 using Booklify.Infrastructure.Models;
 using Booklify.Infrastructure.Utils;
 using System.Transactions;
@@ -56,7 +57,7 @@ public class FileUploadJob
             // Begin transaction after successful file upload
             await unitOfWork.BeginTransactionAsync();
 
-            // Create new FileInfo record with completed status
+            // Create new FileInfo record with completed status using BaseEntityExtensions
             fileInfo = new Domain.Entities.FileInfo
             {
                 Name = fileName,
@@ -68,17 +69,18 @@ public class FileUploadJob
                 FilePath = storagePath,
                 JobStatus = FileJobStatus.Completed,
                 JobStartedAt = DateTime.UtcNow,
-                JobCompletedAt = DateTime.UtcNow,
-                CreatedBy = !string.IsNullOrEmpty(userId) ? Guid.Parse(userId) : null,
-                CreatedAt = DateTime.UtcNow
+                JobCompletedAt = DateTime.UtcNow
             };
+
+            // Initialize base entity properties
+            fileInfo.InitializeBaseEntity(userId);
 
             await unitOfWork.FileInfoRepository.AddAsync(fileInfo);
 
             // Update entity with file reference if this is a specific upload type
             if (entityId.HasValue && uploadType != FileUploadType.None)
             {
-                await UpdateEntityFile(unitOfWork, uploadType, entityId.Value, fileInfo);
+                await UpdateEntityFile(unitOfWork, uploadType, entityId.Value, fileInfo, userId);
             }
 
             // Commit all changes in one transaction
@@ -125,7 +127,7 @@ public class FileUploadJob
     /// <summary>
     /// Update entity's file reference based on upload type
     /// </summary>
-    private async Task UpdateEntityFile(IUnitOfWork unitOfWork, FileUploadType uploadType, Guid entityId, Domain.Entities.FileInfo fileInfo)
+    private async Task UpdateEntityFile(IUnitOfWork unitOfWork, FileUploadType uploadType, Guid entityId, Domain.Entities.FileInfo fileInfo, string userId)
     {
         switch (uploadType)
         {
@@ -137,6 +139,7 @@ public class FileUploadJob
                 {
                     userProfile.Avatar = fileInfo;
                     userProfile.AvatarId = fileInfo.Id;
+                    userProfile.UpdateBaseEntity(userId);
                     await unitOfWork.UserProfileRepository.UpdateAsync(userProfile);
                     break;
                 }
@@ -148,6 +151,7 @@ public class FileUploadJob
                 {
                     staffProfile.Avatar = fileInfo;
                     staffProfile.AvatarId = fileInfo.Id;
+                    staffProfile.UpdateBaseEntity(userId);
                     await unitOfWork.StaffProfileRepository.UpdateAsync(staffProfile);
                 }
                 break;
@@ -160,6 +164,7 @@ public class FileUploadJob
                 {
                     book.File = fileInfo;
                     book.FilePath = fileInfo.FilePath;
+                    book.UpdateBaseEntity(userId);
                     await unitOfWork.BookRepository.UpdateAsync(book);
                 }
                 break;
@@ -169,6 +174,7 @@ public class FileUploadJob
                 if (bookForCover != null)
                 {
                     bookForCover.CoverImageUrl = fileInfo.FilePath;
+                    bookForCover.UpdateBaseEntity(userId);
                     await unitOfWork.BookRepository.UpdateAsync(bookForCover);
                 }
                 break;
@@ -199,7 +205,6 @@ public class FileUploadJob
 
                 var newFileInfo = new Domain.Entities.FileInfo
                 {
-                    Id = Guid.NewGuid(),
                     Name = fileData.FileName,
                     FilePath = storagePath,
                     SizeKb = fileData.FileBytes.Length / 1024,
@@ -209,10 +214,11 @@ public class FileUploadJob
                     ServerUpload = storageService.GetType().Name,
                     JobStatus = FileJobStatus.Completed,
                     JobStartedAt = DateTime.UtcNow,
-                    JobCompletedAt = DateTime.UtcNow,
-                    CreatedBy = !string.IsNullOrEmpty(userId) ? Guid.Parse(userId) : null,
-                    CreatedAt = DateTime.UtcNow
+                    JobCompletedAt = DateTime.UtcNow
                 };
+
+                // Initialize base entity properties
+                newFileInfo.InitializeBaseEntity(userId);
 
                 await unitOfWork.FileInfoRepository.AddAsync(newFileInfo);
                 uploadedFiles.Add(newFileInfo);

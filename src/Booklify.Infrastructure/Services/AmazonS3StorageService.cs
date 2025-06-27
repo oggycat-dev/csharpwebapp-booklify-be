@@ -35,9 +35,7 @@ public class AmazonS3StorageService : IStorageService
             throw new InvalidOperationException($"File size exceeds maximum allowed size of {_storageSettings.AmazonS3.MaxFileSize} bytes");
         }
 
-        // Generate unique filename
-        var uniqueFileName = $"{Guid.NewGuid()}{extension}";
-        
+        // Use the provided filename as-is (should already be sanitized and unique)
         // Auto-determine folder based on file type if not specified
         if (folder == null)
         {
@@ -46,8 +44,8 @@ public class AmazonS3StorageService : IStorageService
         
         // Create S3 key with folder if specified
         var key = folder != null 
-            ? $"{folder.Trim('/')}/{uniqueFileName}"
-            : uniqueFileName;
+            ? $"{folder.Trim('/')}/{fileName}"
+            : fileName;
 
         // Choose upload method based on file size
         if (fileStream.Length >= _storageSettings.AmazonS3.MultipartThreshold)

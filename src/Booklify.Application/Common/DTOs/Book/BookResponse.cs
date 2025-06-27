@@ -19,6 +19,8 @@ public class BookResponse
     public string Publisher { get; set; } = string.Empty;
     [JsonPropertyName("category_id")]
     public Guid CategoryId { get; set; }
+    [JsonPropertyName("category_name")]
+    public string CategoryName { get; set; } = string.Empty;
     [JsonPropertyName("approval_status")]
     public string ApprovalStatus { get; set; } = string.Empty;
     [JsonPropertyName("status")]
@@ -40,7 +42,5 @@ public class BookResponse
     [JsonPropertyName("has_chapters")]
     public bool HasChapters { get; set; }
     
-    // Navigation Properties
-    [JsonPropertyName("category")]
-    public BookCategoryResponse? Category { get; set; }
+    
 } 

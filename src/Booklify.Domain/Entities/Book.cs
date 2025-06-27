@@ -12,6 +12,7 @@ public class Book : BaseEntity
     public string Publisher { get; set; } = string.Empty;
     public Guid CategoryId { get; set; }
     public ApprovalStatus ApprovalStatus { get; set; } = ApprovalStatus.Pending;
+    public string? ApprovalNote { get; set; }
     public EntityStatus Status { get; set; } = EntityStatus.Active;
     public string? CoverImageUrl { get; set; }
     public bool IsPremium { get; set; }
