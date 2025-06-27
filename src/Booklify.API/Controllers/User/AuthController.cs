@@ -13,7 +13,7 @@ using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Auth;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Booklify.API.Controllers;
+namespace Booklify.API.Controllers.User;
 
 /// <summary>
 /// Controller quản lý xác thực cho người dùng

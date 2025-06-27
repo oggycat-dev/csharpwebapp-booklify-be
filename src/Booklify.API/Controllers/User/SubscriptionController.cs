@@ -9,7 +9,7 @@ using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Subscription;
 using Swashbuckle.AspNetCore.Annotations;
 
-namespace Booklify.API.Controllers;
+namespace Booklify.API.Controllers.User;
 
 /// <summary>
 /// Controller quản lý subscription cho người dùng
@@ -17,7 +17,7 @@ namespace Booklify.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [ApiExplorerSettings(GroupName = "v1")]
-[Configurations.Tags("User", "Subscription")]
+[Configurations.Tags("User", "User_Subscription")]
 [SwaggerTag("API quản lý subscription dành cho người dùng")]
 public class SubscriptionController : ControllerBase
 {
@@ -44,7 +44,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Lấy danh sách gói subscription",
         Description = "Lấy tất cả gói subscription đang hoạt động",
         OperationId = "GetSubscriptionPlans",
-        Tags = new[] { "User", "Subscription" }
+        Tags = new[] { "User", "User_Subscription" }
     )]
     public async Task<IActionResult> GetSubscriptionPlans()
     {
@@ -89,7 +89,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Đăng ký gói subscription",
         Description = "Tạo subscription và đơn hàng thanh toán",
         OperationId = "SubscribeToPackage",
-        Tags = new[] { "User", "Subscription" }
+        Tags = new[] { "User", "User_Subscription" }
     )]
     public async Task<IActionResult> Subscribe([FromBody] SubscribeRequest request)
     {
@@ -120,7 +120,7 @@ public class SubscriptionController : ControllerBase
         Summary = "Lấy subscription của tôi",
         Description = "Lấy danh sách subscription của user hiện tại",
         OperationId = "GetMySubscriptions",
-        Tags = new[] { "User", "Subscription" }
+        Tags = new[] { "User", "User_Subscription" }
     )]
     public async Task<IActionResult> GetMySubscriptions()
     {

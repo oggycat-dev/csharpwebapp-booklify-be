@@ -16,19 +16,11 @@ public static class SwaggerConfiguration
     {
         services.AddSwaggerGen(options =>
         {
-            // Configure basic information
             options.SwaggerDoc("v1", new OpenApiInfo
             {
-                Title = "Booklify Public API",
+                Title = "Booklify API",
                 Version = "v1",
-                Description = "Public APIs for Booklify book management system"
-            });
-            
-            options.SwaggerDoc("admin", new OpenApiInfo
-            {
-                Title = "Booklify Admin API",
-                Version = "v1",
-                Description = "Admin APIs for Booklify book management system"
+                Description = "Complete API documentation for Booklify book management system including Admin and User endpoints"
             });
             
             // Configure API grouping by controller
@@ -52,7 +44,7 @@ public static class SwaggerConfiguration
                 var relativePath = api.RelativePath?.ToLower();
                 string mainTag;
                 
-                if (relativePath?.Contains("/admin/") == true)
+                if (relativePath?.Contains("/cms/") == true || relativePath?.Contains("/admin/") == true)
                 {
                     mainTag = "Admin";
                 }
@@ -60,13 +52,9 @@ public static class SwaggerConfiguration
                 {
                     mainTag = "User";
                 }
-                else if (relativePath?.Contains("/common/") == true)
-                {
-                    mainTag = "Common";
-                }
                 else
                 {
-                    return new[] { controllerName };
+                    mainTag = "Public";
                 }
                 
                 // Combine main group with controller name
@@ -135,8 +123,7 @@ public static class SwaggerConfiguration
         
         app.UseSwaggerUI(options =>
         {
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Booklify Public API v1");
-            options.SwaggerEndpoint("/swagger/admin/swagger.json", "Booklify Admin API v1");
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "Booklify API v1");
             options.RoutePrefix = "swagger";
             options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
             options.EnableDeepLinking();

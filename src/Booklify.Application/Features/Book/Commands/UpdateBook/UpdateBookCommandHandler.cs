@@ -78,11 +78,11 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
             BookUpdateJobData? jobData = null;
             if (hasNewFile)
             {
-                var jobDataResult = await _bookBusinessLogic.PrepareBookUpdateJobDataAsync(existingBook, hasNewFile, _unitOfWork);
-                if (!jobDataResult.IsSuccess)
-                {
-                    return Result<BookResponse>.Failure(jobDataResult.Message, jobDataResult.ErrorCode ?? ErrorCode.InternalError);
-                }
+            var jobDataResult = await _bookBusinessLogic.PrepareBookUpdateJobDataAsync(existingBook, hasNewFile, _unitOfWork);
+            if (!jobDataResult.IsSuccess)
+            {
+                return Result<BookResponse>.Failure(jobDataResult.Message, jobDataResult.ErrorCode ?? ErrorCode.InternalError);
+            }
                 jobData = jobDataResult.Data!;
             }
 
@@ -203,13 +203,13 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
             // Queue background jobs AFTER successful commit - ONLY if there's a new file
             if (hasNewFile && jobData != null)
             {
-                _bookBusinessLogic.QueueBookBackgroundJobs(
-                    jobData, 
-                    existingBook.Id, 
-                    currentUserId, 
-                    _fileBackgroundService, 
-                    _epubService, 
-                    _logger);
+            _bookBusinessLogic.QueueBookBackgroundJobs(
+                jobData, 
+                existingBook.Id, 
+                currentUserId, 
+                _fileBackgroundService, 
+                _epubService, 
+                _logger);
             }
 
             // Map to response
