@@ -207,6 +207,13 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
             
+            // Configure relationship with Chapters (CASCADE DELETE)
+            entity.HasMany(b => b.Chapters)
+                .WithOne(c => c.Book)
+                .HasForeignKey(c => c.BookId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+            
             // Add indexes for performance
             entity.HasIndex(b => b.Title);
             entity.HasIndex(b => b.Author);
@@ -214,11 +221,52 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
             entity.HasIndex(b => b.ApprovalStatus);
             entity.HasIndex(b => b.Status);
             entity.HasIndex(b => b.IsPremium);
-            entity.HasIndex(b => b.ISBN).IsUnique();
+            entity.HasIndex(b => b.ISBN);
             
             // Composite indexes for common queries
             entity.HasIndex(b => new { b.ApprovalStatus, b.Status, b.IsPremium });
             entity.HasIndex(b => new { b.CategoryId, b.ApprovalStatus, b.Status });
+        });
+
+        // Configure Chapter
+        builder.Entity<Chapter>(entity =>
+        {
+            entity.ToTable("Chapters");
+            
+            // Required fields
+            entity.Property(c => c.Title).IsRequired();
+            entity.Property(c => c.Order).IsRequired();
+            entity.Property(c => c.Href).IsRequired(false);
+            entity.Property(c => c.Cfi).IsRequired(false);
+            
+            // Convert Status enum to int
+            entity.Property(c => c.Status)
+                .HasConversion<int>();
+            
+            // Configure self-referencing relationship for parent-child chapters
+            entity.HasOne(c => c.ParentChapter)
+                .WithMany(c => c.ChildChapters)
+                .HasForeignKey(c => c.ParentChapterId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete loops
+            
+            // Configure relationship with Book (already configured above but adding for completeness)
+            entity.HasOne(c => c.Book)
+                .WithMany(b => b.Chapters)
+                .HasForeignKey(c => c.BookId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Add indexes for performance
+            entity.HasIndex(c => c.BookId);
+            entity.HasIndex(c => c.ParentChapterId);
+            entity.HasIndex(c => c.Order);
+            entity.HasIndex(c => c.Status);
+            
+            // Composite indexes for common queries
+            entity.HasIndex(c => new { c.BookId, c.Order });
+            entity.HasIndex(c => new { c.BookId, c.Status });
+            entity.HasIndex(c => new { c.ParentChapterId, c.Order });
         });
 
         // Configure Subscription

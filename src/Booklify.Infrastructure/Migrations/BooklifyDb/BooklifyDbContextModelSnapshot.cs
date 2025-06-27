@@ -28,6 +28,9 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ApprovalNote")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("ApprovalStatus")
                         .HasColumnType("int");
 
@@ -103,9 +106,7 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                         .IsUnique()
                         .HasFilter("[FilePath] IS NOT NULL");
 
-                    b.HasIndex("ISBN")
-                        .IsUnique()
-                        .HasFilter("[ISBN] IS NOT NULL");
+                    b.HasIndex("ISBN");
 
                     b.HasIndex("IsPremium");
 
@@ -221,9 +222,19 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
 
                     b.HasIndex("BookId");
 
+                    b.HasIndex("Order");
+
                     b.HasIndex("ParentChapterId");
 
-                    b.ToTable("Chapters");
+                    b.HasIndex("Status");
+
+                    b.HasIndex("BookId", "Order");
+
+                    b.HasIndex("BookId", "Status");
+
+                    b.HasIndex("ParentChapterId", "Order");
+
+                    b.ToTable("Chapters", (string)null);
                 });
 
             modelBuilder.Entity("Booklify.Domain.Entities.FileInfo", b =>
@@ -818,11 +829,13 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                 {
                     b.HasOne("Booklify.Domain.Entities.Book", "Book")
                         .WithMany("Chapters")
-                        .HasForeignKey("BookId");
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("Booklify.Domain.Entities.Chapter", "ParentChapter")
                         .WithMany("ChildChapters")
-                        .HasForeignKey("ParentChapterId");
+                        .HasForeignKey("ParentChapterId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Book");
 
@@ -874,11 +887,6 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.Navigation("IdentityUser");
                 });
 
-            modelBuilder.Entity("Booklify.Domain.Entities.Book", b =>
-                {
-                    b.Navigation("Chapters");
-                });
-
             modelBuilder.Entity("Booklify.Domain.Entities.UserSubscription", b =>
                 {
                     b.HasOne("Booklify.Domain.Entities.Subscription", "Subscription")
@@ -896,6 +904,11 @@ namespace Booklify.Infrastructure.Migrations.BooklifyDb
                     b.Navigation("Subscription");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Booklify.Domain.Entities.Book", b =>
+                {
+                    b.Navigation("Chapters");
                 });
 
             modelBuilder.Entity("Booklify.Domain.Entities.BookCategory", b =>

@@ -66,7 +66,7 @@ public class CreateBookCommandHandler : IRequestHandler<CreateBookCommand, Resul
                 return Result<BookResponse>.Failure(categoryValidation.Message, categoryValidation.ErrorCode ?? ErrorCode.ValidationFailed);
             }
 
-            // Begin transaction
+            // Begin Unit of Work transaction
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             // Create and upload file
@@ -94,6 +94,7 @@ public class CreateBookCommandHandler : IRequestHandler<CreateBookCommand, Resul
             // Check if file is EPUB BEFORE commit for background processing
             var shouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(fileInfo.Extension);
             
+            // Commit transaction BEFORE background jobs
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             // Queue EPUB processing AFTER successful commit

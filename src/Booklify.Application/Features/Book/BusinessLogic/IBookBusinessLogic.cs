@@ -79,6 +79,24 @@ public interface IBookBusinessLogic
         IFileBackgroundService fileBackgroundService,
         IEPubService epubService,
         Microsoft.Extensions.Logging.ILogger logger);
+
+    /// <summary>
+    /// Get paged books with filters and enrichment
+    /// </summary>
+    Task<Result<PaginatedResult<BookResponse>>> GetPagedBooksAsync(
+        BookFilterModel filter,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IFileService fileService);
+
+    /// <summary>
+    /// Get book by ID with enrichment
+    /// </summary>
+    Task<Result<BookResponse>> GetBookByIdAsync(
+        Guid bookId,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IFileService fileService);
 }
 
 /// <summary>

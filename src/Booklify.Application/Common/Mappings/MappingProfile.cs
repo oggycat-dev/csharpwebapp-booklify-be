@@ -223,6 +223,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ISBN, opt => opt.MapFrom(src => src.ISBN))
             .ForMember(dest => dest.Publisher, opt => opt.MapFrom(src => src.Publisher))
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId))
+            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.ApprovalStatus, opt => opt.MapFrom(src => src.ApprovalStatus.ToString()))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .ForMember(dest => dest.CoverImageUrl, opt => opt.MapFrom(src => src.CoverImageUrl))
@@ -233,8 +234,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ModifiedAt, opt => opt.MapFrom(src => src.ModifiedAt))
             .ForMember(dest => dest.HasChapters, opt => opt.MapFrom(src => src.Chapters != null && src.Chapters.Any()))
             // URL will be set in business logic
-            .ForMember(dest => dest.FileUrl, opt => opt.Ignore())
-            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category));
+            .ForMember(dest => dest.FileUrl, opt => opt.Ignore());
+            
 
         // Map Chapter to ChapterResponse
         CreateMap<Domain.Entities.Chapter, Booklify.Application.Common.DTOs.Book.ChapterResponse>()

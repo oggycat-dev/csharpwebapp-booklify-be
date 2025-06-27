@@ -41,7 +41,7 @@ public class FileBackgroundService : IFileBackgroundService
             file.CopyTo(memoryStream);
             var fileBytes = memoryStream.ToArray();
 
-            // Create unique, sanitized file name
+            // Create unique, sanitized file name to prevent overwriting and ensure URL safety
             var fileName = FileNameSanitizer.CreateUniqueFileName(file.FileName);
 
             // Queue the job
@@ -102,6 +102,7 @@ public class FileBackgroundService : IFileBackgroundService
                     file.CopyTo(memoryStream);
                     var fileBytes = memoryStream.ToArray();
 
+                    // Create unique, sanitized file name to prevent overwriting and ensure URL safety
                     var fileName = FileNameSanitizer.CreateUniqueFileName(file.FileName);
 
                     fileDataList.Add(new FileUploadData

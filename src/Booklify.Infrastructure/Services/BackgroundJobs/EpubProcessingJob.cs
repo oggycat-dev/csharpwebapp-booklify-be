@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Booklify.Application.Common.Interfaces;
 using Booklify.Domain.Entities;
+using Booklify.Domain.Commons;
 using Booklify.Infrastructure.Models;
 using Booklify.Infrastructure.Utils;
 using VersOne.Epub;
@@ -105,12 +106,16 @@ public class EpubProcessingJob
                 }
                 book.CoverImageUrl = coverImageUrl;
                 book.PublishedDate = metadata.PublishedDate;
+                book.PageCount = metadata.TotalPages;
                 
                 // Update description chỉ nếu không có description từ trước
                 if (string.IsNullOrEmpty(book.Description) && !string.IsNullOrWhiteSpace(metadata.Description))
                 {
                     book.Description = metadata.Description;
                 }
+
+                // Update base entity for audit trail
+                book.UpdateBaseEntity(userId);
 
                 // 9. Commit tất cả DB changes trong một transaction duy nhất
                 await unitOfWork.ChapterRepository.AddRangeAsync(chapters);
