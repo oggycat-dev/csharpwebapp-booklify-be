@@ -46,7 +46,7 @@ public static class EnvironmentConfiguration
         builder.Configuration["FrontendUrl"] = 
             Environment.GetEnvironmentVariable("FRONTEND_URL");
             
-        // Backend URL for email verification links
+        // Backend URL for API endpoints (used in email verification links, etc.)
         builder.Configuration["BackendUrl"] = 
             Environment.GetEnvironmentVariable("BACKEND_URL") ?? "http://localhost:5123";
             
