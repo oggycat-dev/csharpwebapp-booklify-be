@@ -20,6 +20,8 @@ public class Book : BaseEntity
     public string? Tags { get; set; }
     public int PageCount { get; set; } = 0;
     public DateTime? PublishedDate { get; set; }
+    public double AverageRating { get; set; } = 0;
+    public int TotalRatings { get; set; } = 0;
     
     //Navigator Properties
     public virtual BookCategory? Category { get; set; }
