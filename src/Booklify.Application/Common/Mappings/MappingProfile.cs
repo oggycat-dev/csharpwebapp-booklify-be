@@ -203,6 +203,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId))
             .ForMember(dest => dest.IsPremium, opt => opt.MapFrom(src => src.IsPremium))
             .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => src.Tags))
+            .ForMember(dest => dest.PublishedDate, opt => opt.MapFrom(src => src.PublishedDate))
             .ForMember(dest => dest.ApprovalStatus, opt => opt.MapFrom(src => Domain.Enums.ApprovalStatus.Pending))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => Domain.Enums.EntityStatus.Active))
             // Ignore properties that will be set elsewhere
@@ -212,30 +213,42 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CoverImageUrl, opt => opt.Ignore())
             .ForMember(dest => dest.PageCount, opt => opt.Ignore())
             .ForMember(dest => dest.Category, opt => opt.Ignore())
-            .ForMember(dest => dest.Chapters, opt => opt.Ignore());
+            .ForMember(dest => dest.Chapters, opt => opt.Ignore())
+            .ForMember(dest => dest.ApprovalNote, opt => opt.Ignore())
+            .ForMember(dest => dest.AverageRating, opt => opt.Ignore())
+            .ForMember(dest => dest.TotalRatings, opt => opt.Ignore());
 
-        // Map Book to BookResponse
-        CreateMap<Domain.Entities.Book, Booklify.Application.Common.DTOs.Book.BookResponse>()
+        // Map Book to BookListItemResponse
+        CreateMap<Domain.Entities.Book, BookListItemResponse>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
             .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
             .ForMember(dest => dest.Author, opt => opt.MapFrom(src => src.Author))
+            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
+            .ForMember(dest => dest.CoverImageUrl, opt => opt.MapFrom(src => src.CoverImageUrl))
+            .ForMember(dest => dest.IsPremium, opt => opt.MapFrom(src => src.IsPremium))
+            .ForMember(dest => dest.HasChapters, opt => opt.MapFrom(src => src.Chapters != null && src.Chapters.Any()))
+            .ForMember(dest => dest.AverageRating, opt => opt.MapFrom(src => src.AverageRating))
+            .ForMember(dest => dest.TotalRatings, opt => opt.MapFrom(src => src.TotalRatings))
+            .ForMember(dest => dest.PublishedDate, opt => opt.MapFrom(src => src.PublishedDate))
+            .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => src.Tags));
+
+        // Map Book to BookResponse
+        CreateMap<Domain.Entities.Book, BookResponse>()
+            .IncludeBase<Domain.Entities.Book, BookListItemResponse>()
             .ForMember(dest => dest.ISBN, opt => opt.MapFrom(src => src.ISBN))
             .ForMember(dest => dest.Publisher, opt => opt.MapFrom(src => src.Publisher))
             .ForMember(dest => dest.CategoryId, opt => opt.MapFrom(src => src.CategoryId))
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
             .ForMember(dest => dest.ApprovalStatus, opt => opt.MapFrom(src => src.ApprovalStatus.ToString()))
+            .ForMember(dest => dest.ApprovalNote, opt => opt.MapFrom(src => src.ApprovalNote))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.CoverImageUrl, opt => opt.MapFrom(src => src.CoverImageUrl))
-            .ForMember(dest => dest.IsPremium, opt => opt.MapFrom(src => src.IsPremium))
             .ForMember(dest => dest.FilePath, opt => opt.MapFrom(src => src.FilePath))
-            .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => src.Tags))
             .ForMember(dest => dest.PageCount, opt => opt.MapFrom(src => src.PageCount))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
             .ForMember(dest => dest.ModifiedAt, opt => opt.MapFrom(src => src.ModifiedAt))
-            .ForMember(dest => dest.HasChapters, opt => opt.MapFrom(src => src.Chapters != null && src.Chapters.Any()))
-            // URL will be set in business logic
-            .ForMember(dest => dest.FileUrl, opt => opt.Ignore());
-            
+            // URL and Chapters will be set in business logic
+            .ForMember(dest => dest.FileUrl, opt => opt.Ignore())
+            .ForMember(dest => dest.Chapters, opt => opt.Ignore());
 
         // Map Chapter to ChapterResponse
         CreateMap<Domain.Entities.Chapter, Booklify.Application.Common.DTOs.Book.ChapterResponse>()

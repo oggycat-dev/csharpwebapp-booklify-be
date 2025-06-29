@@ -73,6 +73,21 @@ public class BookFilterModel : FilterBase
     /// </summary>
     public string? Search { get; set; }
     
+    /// <summary>
+    /// Lọc theo rating trung bình tối thiểu
+    /// </summary>
+    public double? MinRating { get; set; }
+    
+    /// <summary>
+    /// Lọc theo rating trung bình tối đa
+    /// </summary>
+    public double? MaxRating { get; set; }
+    
+    /// <summary>
+    /// Lọc theo số lượng đánh giá tối thiểu
+    /// </summary>
+    public int? MinTotalRatings { get; set; }
+    
     public BookFilterModel() : base()
     {
     }

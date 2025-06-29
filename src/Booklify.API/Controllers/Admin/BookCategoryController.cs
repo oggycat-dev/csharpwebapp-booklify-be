@@ -18,7 +18,7 @@ namespace Booklify.API.Controllers.Admin;
 /// </summary>
 [ApiController]
 [Route("api/cms/book-categories")]
-[ApiExplorerSettings(GroupName = "admin")]
+[ApiExplorerSettings(GroupName = "v1")]
 [Authorize(Roles = "Admin")]
 [Configurations.Tags("Admin", "Admin_BookCategory")]
 [SwaggerTag("API quản lý danh mục sách dành cho quản trị viên")]

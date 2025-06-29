@@ -345,11 +345,110 @@ public class BookBusinessLogic : IBookBusinessLogic
             // Enrich with file URLs and additional info
             response = EnrichBookResponse(response, book, fileService);
 
+            // Map chapters manually (không sử dụng AutoMapper)
+            if (book.Chapters != null && book.Chapters.Any())
+            {
+                response.Chapters = MapChaptersToResponse(book.Chapters);
+            }
+
             return Result<BookResponse>.Success(response);
         }
         catch (Exception)
         {
             return Result<BookResponse>.Failure("Lỗi khi lấy thông tin sách", ErrorCode.InternalError);
+        }
+    }
+
+    /// <summary>
+    /// Map chapters to response DTOs manually (không sử dụng AutoMapper)
+    /// </summary>
+    private List<ChapterResponse> MapChaptersToResponse(ICollection<Domain.Entities.Chapter> chapters)
+    {
+        var chapterList = chapters.OrderBy(c => c.Order).ToList();
+        var chapterDict = new Dictionary<Guid, ChapterResponse>();
+        
+        // Tạo tất cả chapters trước
+        foreach (var chapter in chapterList)
+        {
+            var chapterResponse = new ChapterResponse
+            {
+                Id = chapter.Id,
+                Title = chapter.Title,
+                Order = chapter.Order,
+                Href = chapter.Href,
+                Cfi = chapter.Cfi,
+                ParentChapterId = chapter.ParentChapterId,
+                ChildChapters = new List<ChapterResponse>()
+            };
+            chapterDict[chapter.Id] = chapterResponse;
+        }
+        
+        // Xây dựng cấu trúc cây
+        var rootChapters = new List<ChapterResponse>();
+        
+        foreach (var chapter in chapterList)
+        {
+            var chapterResponse = chapterDict[chapter.Id];
+            
+            if (chapter.ParentChapterId.HasValue && chapterDict.ContainsKey(chapter.ParentChapterId.Value))
+            {
+                // Thêm vào parent
+                var parent = chapterDict[chapter.ParentChapterId.Value];
+                parent.ChildChapters?.Add(chapterResponse);
+            }
+            else
+            {
+                // Là root chapter
+                rootChapters.Add(chapterResponse);
+            }
+        }
+        
+        return rootChapters;
+    }
+
+    /// <summary>
+    /// Get paged books with basic information for client view
+    /// </summary>
+    public async Task<Result<PaginatedResult<BookListItemResponse>>> GetPagedBookListItemsAsync(
+        BookFilterModel filter,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IFileService fileService)
+    {
+        try
+        {
+            var filterToUse = filter ?? new BookFilterModel();
+            
+            // Get paged books from repository
+            var (books, totalCount) = await unitOfWork.BookRepository.GetPagedBooksAsync(filterToUse);
+            
+            // Map to list item response DTOs using AutoMapper
+            var bookResponses = mapper.Map<List<BookListItemResponse>>(books);
+            
+            // Enrich cover image URLs
+            foreach (var response in bookResponses)
+            {
+                var book = books.First(b => b.Id == response.Id);
+                if (!string.IsNullOrEmpty(book.CoverImageUrl))
+                {
+                    response.CoverImageUrl = fileService.GetFileUrl(book.CoverImageUrl);
+                }
+            }
+            
+            // Return paginated result
+            var result = PaginatedResult<BookListItemResponse>.Success(
+                bookResponses, 
+                filterToUse.PageNumber,
+                filterToUse.PageSize,
+                totalCount);
+                
+            return Result<PaginatedResult<BookListItemResponse>>.Success(result);
+        }
+        catch (Exception)
+        {
+            return Result<PaginatedResult<BookListItemResponse>>.Failure(
+                "Lỗi khi lấy danh sách sách", 
+                ErrorCode.InternalError);
         }
     }
 } 

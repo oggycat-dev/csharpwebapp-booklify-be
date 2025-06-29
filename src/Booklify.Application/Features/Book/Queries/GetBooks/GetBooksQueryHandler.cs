@@ -8,7 +8,10 @@ using Booklify.Application.Features.Book.BusinessLogic;
 
 namespace Booklify.Application.Features.Book.Queries.GetBooks;
 
-public class GetBooksQueryHandler : IRequestHandler<GetBooksQuery, PaginatedResult<BookResponse>>
+/// <summary>
+/// Handler cho GetBooksQuery - admin view với đầy đủ filter options
+/// </summary>
+public class GetBooksQueryHandler : IRequestHandler<GetBooksQuery, Result<PaginatedResult<BookListItemResponse>>>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -30,27 +33,25 @@ public class GetBooksQueryHandler : IRequestHandler<GetBooksQuery, PaginatedResu
         _bookBusinessLogic = bookBusinessLogic;
     }
     
-    public async Task<PaginatedResult<BookResponse>> Handle(GetBooksQuery request, CancellationToken cancellationToken)
+    public async Task<Result<PaginatedResult<BookListItemResponse>>> Handle(GetBooksQuery request, CancellationToken cancellationToken)
     {
         try
         {
-            var result = await _bookBusinessLogic.GetPagedBooksAsync(
+            // Admin view không fix cứng trạng thái, cho phép filter tất cả
+            var result = await _bookBusinessLogic.GetPagedBookListItemsAsync(
                 request.Filter, 
                 _unitOfWork, 
                 _mapper, 
                 _fileService);
             
-            if (!result.IsSuccess)
-            {
-                return PaginatedResult<BookResponse>.Failure(result.Message, result.ErrorCode ?? ErrorCode.InternalError);
-            }
-            
-            return result.Data!;
+            return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error querying book list");
-            return PaginatedResult<BookResponse>.Failure("An error occurred while querying the book list", ErrorCode.InternalError);
+            _logger.LogError(ex, "Error querying book list for admin");
+            return Result<PaginatedResult<BookListItemResponse>>.Failure(
+                "An error occurred while querying the book list", 
+                ErrorCode.InternalError);
         }
     }
 } 

@@ -50,22 +50,25 @@ public class BookController : ControllerBase
     /// - approvalStatus: Lọc theo trạng thái phê duyệt (0: Pending, 1: Approved, 2: Rejected)
     /// - status: Lọc theo trạng thái sách (0: Active, 1: Inactive)
     /// - isPremium: Lọc theo loại sách có phí (true/false)
-         /// - tags: Lọc theo tags (tìm kiếm gần đúng)
-     /// - hasChapters: Lọc theo sách có chapters (true/false)
-     /// - publishedDateFrom: Lọc từ ngày xuất bản (yyyy-MM-dd)
-     /// - publishedDateTo: Lọc đến ngày xuất bản (yyyy-MM-dd)
-     /// - search: Tìm kiếm trong tất cả các trường text (title, author, isbn, publisher, tags)
-     /// 
-     /// Các tham số sắp xếp:
-     /// - sortBy: Trường dữ liệu dùng để sắp xếp (title, author, isbn, publisher, approvalstatus, status, ispremium, pagecount, publisheddate, createdat)
-     /// - isAscending: Sắp xếp tăng dần (true) hoặc giảm dần (false) - mặc định sắp xếp theo ngày tạo mới nhất
+    /// - tags: Lọc theo tags (tìm kiếm gần đúng)
+    /// - hasChapters: Lọc theo sách có chapters (true/false)
+    /// - publishedDateFrom: Lọc từ ngày xuất bản (yyyy-MM-dd)
+    /// - publishedDateTo: Lọc đến ngày xuất bản (yyyy-MM-dd)
+    /// - search: Tìm kiếm trong tất cả các trường text (title, author, isbn, publisher, tags)
+    /// - minRating: Lọc theo rating trung bình tối thiểu (0.0 - 5.0)
+    /// - maxRating: Lọc theo rating trung bình tối đa (0.0 - 5.0)
+    /// - minTotalRatings: Lọc theo số lượng đánh giá tối thiểu
+    /// 
+    /// Các tham số sắp xếp:
+    /// - sortBy: Trường dữ liệu dùng để sắp xếp (title, author, isbn, publisher, approvalstatus, status, ispremium, pagecount, publisheddate, createdat, rating, totalratings)
+    /// - isAscending: Sắp xếp tăng dần (true) hoặc giảm dần (false) - mặc định sắp xếp theo ngày tạo mới nhất
     /// 
     /// Các tham số phân trang:
     /// - pageNumber: Số trang (mặc định: 1)
     /// - pageSize: Số lượng bản ghi trên một trang (mặc định: 10)
     /// </remarks>
     [HttpGet("list")]
-    [ProducesResponseType(typeof(PaginatedResult<BookResponse>), 200)]
+    [ProducesResponseType(typeof(PaginatedResult<BookListItemResponse>), 200)]
     [ProducesResponseType(typeof(Result), 400)]
     [ProducesResponseType(typeof(Result), 401)]
     [ProducesResponseType(typeof(Result), 403)]
@@ -90,6 +93,9 @@ public class BookController : ControllerBase
         [FromQuery] DateTime? publishedDateFrom,
         [FromQuery] DateTime? publishedDateTo,
         [FromQuery] string? search,
+        [FromQuery] double? minRating,
+        [FromQuery] double? maxRating,
+        [FromQuery] int? minTotalRatings,
         [FromQuery] string? sortBy,
         [FromQuery] bool isAscending = true,
         [FromQuery] int pageNumber = 1,
@@ -110,6 +116,9 @@ public class BookController : ControllerBase
             PublishedDateFrom = publishedDateFrom,
             PublishedDateTo = publishedDateTo,
             Search = search,
+            MinRating = minRating,
+            MaxRating = maxRating,
+            MinTotalRatings = minTotalRatings,
             SortBy = sortBy,
             IsAscending = isAscending
         };
@@ -141,10 +150,10 @@ public class BookController : ControllerBase
     /// - author: Tác giả (bắt buộc)
     /// - isbn: Mã ISBN (không bắt buộc)
     /// - publisher: Nhà xuất bản (không bắt buộc)
-         /// - category_id: ID danh mục sách (bắt buộc) - định dạng: GUID
-     /// - is_premium: Sách có phí hay không (không bắt buộc) - true/false
-     /// - tags: Thẻ tag (không bắt buộc) - phân cách bằng dấu phẩy
-     /// - published_date: Ngày xuất bản (không bắt buộc) - định dạng: yyyy-MM-dd
+    /// - category_id: ID danh mục sách (bắt buộc) - định dạng: GUID
+    /// - is_premium: Sách có phí hay không (không bắt buộc) - true/false
+    /// - tags: Thẻ tag (không bắt buộc) - phân cách bằng dấu phẩy
+    /// - published_date: Ngày xuất bản (không bắt buộc) - định dạng: yyyy-MM-dd
     /// 
     /// Giới hạn file:
     /// - Kích thước tối đa: 50MB
@@ -159,10 +168,10 @@ public class BookController : ControllerBase
     /// <param name="author">Tác giả</param>
     /// <param name="isbn">Mã ISBN</param>
     /// <param name="publisher">Nhà xuất bản</param>
-         /// <param name="categoryId">ID danh mục sách</param>
-     /// <param name="isPremium">Sách có phí hay không</param>
-     /// <param name="tags">Thẻ tag (phân cách bằng dấu phẩy)</param>
-     /// <param name="publishedDate">Ngày xuất bản</param>
+    /// <param name="categoryId">ID danh mục sách</param>
+    /// <param name="isPremium">Sách có phí hay không</param>
+    /// <param name="tags">Thẻ tag (phân cách bằng dấu phẩy)</param>
+    /// <param name="publishedDate">Ngày xuất bản</param>
     /// <returns>Thông tin sách đã tạo</returns>
     /// <response code="200">Tạo sách thành công</response>
     /// <response code="400">Dữ liệu không hợp lệ hoặc file không được hỗ trợ</response>

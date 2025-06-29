@@ -97,6 +97,15 @@ public interface IBookBusinessLogic
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IFileService fileService);
+
+    /// <summary>
+    /// Get paged books with basic information for client view
+    /// </summary>
+    Task<Result<PaginatedResult<BookListItemResponse>>> GetPagedBookListItemsAsync(
+        BookFilterModel filter,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IFileService fileService);
 }
 
 /// <summary>

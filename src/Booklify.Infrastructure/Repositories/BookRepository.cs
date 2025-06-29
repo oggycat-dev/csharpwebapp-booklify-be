@@ -122,6 +122,22 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
                 (b.Tags != null && b.Tags.Contains(filter.Search)));
         }
         
+        // Rating filters
+        if (filter.MinRating.HasValue)
+        {
+            predicate = predicate.CombineAnd(b => b.AverageRating >= filter.MinRating.Value);
+        }
+        
+        if (filter.MaxRating.HasValue)
+        {
+            predicate = predicate.CombineAnd(b => b.AverageRating <= filter.MaxRating.Value);
+        }
+        
+        if (filter.MinTotalRatings.HasValue)
+        {
+            predicate = predicate.CombineAnd(b => b.TotalRatings >= filter.MinTotalRatings.Value);
+        }
+        
         return predicate;
     }
 
@@ -146,6 +162,8 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             "pagecount" => b => b.PageCount,
             "publisheddate" => b => b.PublishedDate ?? DateTime.MinValue,
             "createdat" => b => b.CreatedAt,
+            "rating" or "averagerating" => b => b.AverageRating,
+            "totalratings" => b => b.TotalRatings,
             _ => b => b.CreatedAt // Default to CreatedAt for unrecognized properties
         };
     }
