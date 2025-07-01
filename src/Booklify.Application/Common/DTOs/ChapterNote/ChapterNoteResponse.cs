@@ -8,10 +8,6 @@ namespace Booklify.Application.Common.DTOs.ChapterNote;
 public class ChapterNoteResponse : ChapterNoteListItemResponse
 {
     
-    [JsonPropertyName("highlighted_text")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? HighlightedText { get; set; }
-    
     [JsonPropertyName("color")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Color { get; set; }

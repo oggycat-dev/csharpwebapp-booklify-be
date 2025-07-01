@@ -69,7 +69,8 @@ public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Res
                     UserName = command.Request.Email,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    EntityId = staffProfile.Id
+                    EntityId = staffProfile.Id,
+                    EmailConfirmed = true
                 };
                 
                 staffProfile.IdentityUserId = user.Id;

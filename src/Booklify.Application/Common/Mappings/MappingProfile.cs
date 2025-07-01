@@ -284,12 +284,12 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.PageNumber, opt => opt.MapFrom(src => src.PageNumber))
             .ForMember(dest => dest.NoteType, opt => opt.MapFrom(src => src.NoteType))
             .ForMember(dest => dest.NoteTypeName, opt => opt.MapFrom(src => src.NoteType.ToString()))
-            .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi));
+            .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi))
+            .ForMember(dest => dest.HighlightedText, opt => opt.MapFrom(src => src.HighlightedText));
         
         CreateMap<ChapterNote, ChapterNoteResponse>()
             .IncludeBase<ChapterNote, ChapterNoteListItemResponse>()
             // Map nullable fields with null condition
-            .ForMember(dest => dest.HighlightedText, opt => opt.MapFrom(src => src.HighlightedText))
             .ForMember(dest => dest.Color, opt => opt.MapFrom(src => src.Color))
             // Map from navigation properties with null checks
             .ForMember(dest => dest.ChapterTitle, opt => opt.MapFrom(src => 

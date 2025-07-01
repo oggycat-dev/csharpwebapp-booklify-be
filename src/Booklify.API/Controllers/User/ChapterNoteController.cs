@@ -18,7 +18,7 @@ namespace Booklify.API.Controllers.User;
 /// Controller for managing chapter notes for users
 /// </summary>
 [ApiController]
-[Route("api/user/chapter-notes")]
+[Route("api/chapter-notes")]
 [Authorize(Roles = "User")]
 [ApiExplorerSettings(GroupName = "v1")]
 [SwaggerTag("API for managing chapter notes for users")]

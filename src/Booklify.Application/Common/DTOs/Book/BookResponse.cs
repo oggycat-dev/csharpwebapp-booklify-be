@@ -43,9 +43,4 @@ public class BookResponse : BookListItemResponse
 
     [JsonPropertyName("is_chapters_limited")]
     public bool IsChaptersLimited { get; set; }
-
-    public double AverageRating { get; set; }
-    public int TotalRatings { get; set; }
-    public int TotalViews { get; set; }
-    public DateTime? PublishedDate { get; set; }
 } 

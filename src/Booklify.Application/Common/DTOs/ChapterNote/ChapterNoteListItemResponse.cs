@@ -11,8 +11,13 @@ public class ChapterNoteListItemResponse
     [JsonPropertyName("id")]
     public Guid Id { get; set; }
 
+    [JsonPropertyName("highlighted_text")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? HighlightedText { get; set; }
+
     [JsonPropertyName("content")]
-    public string Content { get; set; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Content { get; set; }
 
     [JsonPropertyName("page_number")]
     public int PageNumber { get; set; }
