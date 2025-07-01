@@ -40,4 +40,7 @@ public class BookResponse : BookListItemResponse
 
     [JsonPropertyName("chapters")]
     public List<ChapterResponse>? Chapters { get; set; }
+
+    [JsonPropertyName("is_chapters_limited")]
+    public bool IsChaptersLimited { get; set; }
 } 

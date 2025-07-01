@@ -20,6 +20,7 @@ public class UnitOfWork : IUnitOfWork
     private IUserProfileRepository _userProfileRepository;
     private IFileInfoRepository _fileInfoRepository;
     private IChapterAIResultRepository _chapterAIResultRepository;
+    private IChapterNoteRepository _chapterNoteRepository;
 
     public UnitOfWork(
         BooklifyDbContext businessContext,
@@ -29,7 +30,8 @@ public class UnitOfWork : IUnitOfWork
         IChapterRepository chapterRepository,
         IUserProfileRepository userProfileRepository,
         IFileInfoRepository fileInfoRepository,
-        IChapterAIResultRepository chapterAIResultRepository)
+        IChapterAIResultRepository chapterAIResultRepository,
+        IChapterNoteRepository chapterNoteRepository)
     {
         _businessContext = businessContext;
         _staffProfileRepository = staffProfileRepository;
@@ -39,6 +41,7 @@ public class UnitOfWork : IUnitOfWork
         _userProfileRepository = userProfileRepository;
         _fileInfoRepository = fileInfoRepository;
         _chapterAIResultRepository = chapterAIResultRepository;
+        _chapterNoteRepository = chapterNoteRepository;
     }
 
     public IBooklifyDbContext BusinessContext => _businessContext;
@@ -56,6 +59,8 @@ public class UnitOfWork : IUnitOfWork
     public IFileInfoRepository FileInfoRepository => _fileInfoRepository;
 
     public IChapterAIResultRepository ChapterAIResultRepository => _chapterAIResultRepository;
+
+    public IChapterNoteRepository ChapterNoteRepository => _chapterNoteRepository;
 
     /// <summary>
     /// Begin a transaction

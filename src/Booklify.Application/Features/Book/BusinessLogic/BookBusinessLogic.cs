@@ -317,13 +317,14 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
-    /// Get book by ID with enrichment
+    /// Get book by ID with role-based access control and status validation
     /// </summary>
     public async Task<Result<BookResponse>> GetBookByIdAsync(
         Guid bookId,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IFileService fileService)
+        IFileService fileService,
+        ICurrentUserService? currentUserService = null)
     {
         try
         {
@@ -339,16 +340,72 @@ public class BookBusinessLogic : IBookBusinessLogic
                 return Result<BookResponse>.Failure("Không tìm thấy sách", ErrorCode.NotFound);
             }
 
+            // Determine user role and authentication status
+            bool isAuthenticated = currentUserService?.IsAuthenticated ?? false;
+            var userRoles = currentUserService?.Roles?.ToList() ?? new List<string>();
+            bool isAdminOrStaff = userRoles.Contains("Admin") || userRoles.Contains("Staff");
+            bool isUser = userRoles.Contains("User");
+            bool isGuest = !isAuthenticated;
+
+            // Status validation based on role
+            if (!isAdminOrStaff)
+            {
+                // Guest and User can only see Active + Approved books
+                if (book.Status != EntityStatus.Active || book.ApprovalStatus != ApprovalStatus.Approved)
+                {
+                    return Result<BookResponse>.Failure("Không tìm thấy sách hoặc sách không được phép xem", ErrorCode.NotFound);
+                }
+            }
+            // Admin/Staff can see all books regardless of status
+
             // Map to response DTO
             var response = mapper.Map<BookResponse>(book);
 
             // Enrich with file URLs and additional info
             response = EnrichBookResponse(response, book, fileService);
 
-            // Map chapters manually (không sử dụng AutoMapper)
+            // Handle chapters based on role and premium status
             if (book.Chapters != null && book.Chapters.Any())
             {
-                response.Chapters = MapChaptersToResponse(book.Chapters);
+                if (book.IsPremium && !isAdminOrStaff)
+                {
+                    // Premium book for non-admin/staff users
+                    bool hasFullAccess = false;
+
+                    if (isUser && currentUserService != null)
+                    {
+                        // Check subscription for authenticated users
+                        hasFullAccess = await CheckPremiumAccessAsync(currentUserService, unitOfWork);
+                    }
+                    // Guest users (isGuest = true) will have hasFullAccess = false
+
+                    if (hasFullAccess)
+                    {
+                        // User with active subscription - build full chapters
+                        response.Chapters = MapChaptersToResponse(book.Chapters);
+                        response.IsChaptersLimited = false;
+                    }
+                    else
+                    {
+                        // Guest or User without subscription - limit to first 2 chapters
+                        var limitedChapters = book.Chapters
+                            .OrderBy(c => c.Order)
+                            .Take(2)
+                            .ToList();
+                        response.Chapters = MapChaptersToResponse(limitedChapters);
+                        response.IsChaptersLimited = true;
+                    }
+                }
+                else
+                {
+                    // Non-premium book OR Admin/Staff - build all chapters
+                    response.Chapters = MapChaptersToResponse(book.Chapters);
+                    response.IsChaptersLimited = false;
+                }
+            }
+            else
+            {
+                response.IsChaptersLimited = false;
             }
 
             return Result<BookResponse>.Success(response);
@@ -357,6 +414,57 @@ public class BookBusinessLogic : IBookBusinessLogic
         {
             return Result<BookResponse>.Failure("Lỗi khi lấy thông tin sách", ErrorCode.InternalError);
         }
+    }
+
+    /// <summary>
+    /// Check if user has premium access (Admin, Staff, or active subscription)
+    /// </summary>
+    private async Task<bool> CheckPremiumAccessAsync(ICurrentUserService currentUserService, IUnitOfWork unitOfWork)
+    {
+        // Guest user - không có quyền
+        if (!currentUserService.IsAuthenticated)
+        {
+            return false;
+        }
+
+        var userRoles = currentUserService.Roles.ToList();
+
+        // Admin và Staff có quyền truy cập đầy đủ
+        if (userRoles.Contains("Admin") || userRoles.Contains("Staff"))
+        {
+            return true;
+        }
+
+        // Kiểm tra subscription cho User role
+        if (userRoles.Contains("User"))
+        {
+            var userId = currentUserService.UserId;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return false;
+            }
+
+            // Lấy user profile và kiểm tra subscription
+            var userProfile = await unitOfWork.UserProfileRepository.GetFirstOrDefaultAsync(
+                u => u.IdentityUserId == userId,
+                u => u.UserSubscriptions);
+
+            if (userProfile?.UserSubscriptions == null || !userProfile.UserSubscriptions.Any())
+            {
+                return false;
+            }
+
+            // Kiểm tra có subscription active không
+            var activeSubscription = userProfile.UserSubscriptions
+                .FirstOrDefault(s => s.IsActive && 
+                                   s.Status == Domain.Enums.EntityStatus.Active &&
+                                   s.StartDate <= DateTime.UtcNow && 
+                                   s.EndDate >= DateTime.UtcNow);
+
+            return activeSubscription != null;
+        }
+
+        return false;
     }
 
     /// <summary>

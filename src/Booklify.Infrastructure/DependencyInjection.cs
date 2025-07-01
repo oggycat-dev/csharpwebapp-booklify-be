@@ -109,6 +109,7 @@ public static class DependencyInjection
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<IFileInfoRepository, FileInfoRepository>();
         services.AddScoped<IChapterAIResultRepository, ChapterAIResultRepository>();
+        services.AddScoped<IChapterNoteRepository, ChapterNoteRepository>();
 
         // Register Unit of Work
         services.AddScoped<IUnitOfWork, UnitOfWork>();

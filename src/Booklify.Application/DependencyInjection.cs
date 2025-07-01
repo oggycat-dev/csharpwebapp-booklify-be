@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Booklify.Application.Common.Behaviors;
 using Booklify.Application.Features.Book.BusinessLogic;
+using Booklify.Application.Features.ChapterNote.BusinessLogic;
 
 namespace Booklify.Application;
 
@@ -37,6 +38,7 @@ public static class DependencyInjection
 
         // Register business logic
         services.AddScoped<IBookBusinessLogic, BookBusinessLogic>();
+        services.AddScoped<IChapterNoteBusinessLogic, ChapterNoteBusinessLogic>();
         
         
         return services;

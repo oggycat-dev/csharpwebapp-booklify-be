@@ -58,9 +58,11 @@ public class BookController : ControllerBase
     /// - minRating: Lọc theo rating trung bình tối thiểu (0.0 - 5.0)
     /// - maxRating: Lọc theo rating trung bình tối đa (0.0 - 5.0)
     /// - minTotalRatings: Lọc theo số lượng đánh giá tối thiểu
+    /// - minTotalViews: Lọc theo số lượt xem tối thiểu
+    /// - maxTotalViews: Lọc theo số lượt xem tối đa
     /// 
     /// Các tham số sắp xếp:
-    /// - sortBy: Trường dữ liệu dùng để sắp xếp (title, author, isbn, publisher, approvalstatus, status, ispremium, pagecount, publisheddate, createdat, rating, totalratings)
+    /// - sortBy: Trường dữ liệu dùng để sắp xếp (title, author, isbn, publisher, approvalstatus, status, ispremium, pagecount, publisheddate, createdat, rating, totalratings, totalviews)
     /// - isAscending: Sắp xếp tăng dần (true) hoặc giảm dần (false) - mặc định sắp xếp theo ngày tạo mới nhất
     /// 
     /// Các tham số phân trang:
@@ -96,6 +98,8 @@ public class BookController : ControllerBase
         [FromQuery] double? minRating,
         [FromQuery] double? maxRating,
         [FromQuery] int? minTotalRatings,
+        [FromQuery] int? minTotalViews,
+        [FromQuery] int? maxTotalViews,
         [FromQuery] string? sortBy,
         [FromQuery] bool isAscending = true,
         [FromQuery] int pageNumber = 1,
@@ -119,6 +123,8 @@ public class BookController : ControllerBase
             MinRating = minRating,
             MaxRating = maxRating,
             MinTotalRatings = minTotalRatings,
+            MinTotalViews = minTotalViews,
+            MaxTotalViews = maxTotalViews,
             SortBy = sortBy,
             IsAscending = isAscending
         };

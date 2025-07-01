@@ -5,6 +5,7 @@ using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Book;
 using Booklify.Application.Features.Book.Queries.GetBooks;
 using Booklify.Application.Features.Book.Queries.GetBookById;
+using Booklify.Application.Features.Book.Commands.IncrementBookViews;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -45,9 +46,11 @@ public class BookController : ControllerBase
     /// - minRating: Lọc theo rating trung bình tối thiểu (0.0 - 5.0)
     /// - maxRating: Lọc theo rating trung bình tối đa (0.0 - 5.0)
     /// - minTotalRatings: Lọc theo số lượng đánh giá tối thiểu
+    /// - minTotalViews: Lọc theo số lượt xem tối thiểu
+    /// - maxTotalViews: Lọc theo số lượt xem tối đa
     /// 
     /// Các tham số sắp xếp:
-    /// - sortBy: Trường dữ liệu dùng để sắp xếp (title, author, createdat, rating, totalratings)
+    /// - sortBy: Trường dữ liệu dùng để sắp xếp (title, author, createdat, rating, totalratings, totalviews)
     /// - isAscending: Sắp xếp tăng dần (true) hoặc giảm dần (false)
     /// 
     /// Các tham số phân trang:
@@ -76,6 +79,8 @@ public class BookController : ControllerBase
         [FromQuery] double? minRating,
         [FromQuery] double? maxRating,
         [FromQuery] int? minTotalRatings,
+        [FromQuery] int? minTotalViews,
+        [FromQuery] int? maxTotalViews,
         [FromQuery] string? sortBy,
         [FromQuery] bool isAscending = true,
         [FromQuery] int pageNumber = 1,
@@ -94,6 +99,8 @@ public class BookController : ControllerBase
             MinRating = minRating,
             MaxRating = maxRating,
             MinTotalRatings = minTotalRatings,
+            MinTotalViews = minTotalViews,
+            MaxTotalViews = maxTotalViews,
             SortBy = sortBy,
             IsAscending = isAscending,
             // Fix cứng trạng thái cho trang khách hàng
@@ -113,16 +120,31 @@ public class BookController : ControllerBase
     /// <summary>
     /// Lấy thông tin chi tiết của một cuốn sách
     /// </summary>
+    /// <remarks>
+    /// API này kiểm tra quyền truy cập cho sách premium:
+    /// 
+    /// - Chỉ hiển thị sách đã được duyệt (Approved) và đang hoạt động (Active)
+    /// - Sách thường: Trả về đầy đủ thông tin và chapters
+    /// - Sách premium:
+    ///   + Guest/User không có subscription: Chỉ 2 chapters đầu tiên
+    ///   + User có subscription active: Đầy đủ chapters
+    ///   + Admin/Staff: Đầy đủ chapters (không bị giới hạn)
+    /// 
+    /// Subscription được kiểm tra dựa trên:
+    /// - Subscription đang active (IsActive = true)
+    /// - Trong thời gian hiệu lực (StartDate <= now <= EndDate)
+    /// - Trạng thái subscription = Active
+    /// </remarks>
     /// <param name="id">ID của sách</param>
-    /// <returns>Thông tin chi tiết của sách</returns>
+    /// <returns>Thông tin chi tiết của sách với kiểm tra quyền truy cập</returns>
     /// <response code="200">Lấy thông tin sách thành công</response>
     /// <response code="404">Không tìm thấy sách hoặc sách không được phép xem</response>
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(Result<BookResponse>), 200)]
     [ProducesResponseType(typeof(Result), 404)]
     [SwaggerOperation(
-        Summary = "Lấy thông tin chi tiết sách",
-        Description = "Lấy thông tin chi tiết của một cuốn sách theo ID",
+        Summary = "Lấy thông tin chi tiết sách với kiểm tra subscription",
+        Description = "Lấy thông tin chi tiết của một cuốn sách theo ID với kiểm tra quyền truy cập premium content",
         OperationId = "User_GetBookById",
         Tags = new[] { "User", "User_Book" }
     )]
@@ -131,13 +153,36 @@ public class BookController : ControllerBase
         var query = new GetBookByIdQuery(id);
         var result = await _mediator.Send(query);
         
-        // Kiểm tra trạng thái sách sau khi lấy về
-        if (result.IsSuccess && 
-            (result.Data.Status != EntityStatus.Active.ToString() || 
-             result.Data.ApprovalStatus != ApprovalStatus.Approved.ToString()))
-        {
-            return NotFound(Result.Failure("Không tìm thấy sách hoặc sách không được phép xem", ErrorCode.NotFound));
-        }
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Tăng lượt xem cho sách
+    /// </summary>
+    /// <remarks>
+    /// API này được gọi khi người dùng bấm vào nút đọc sách trên giao diện chi tiết sách.
+    /// Mỗi lần gọi sẽ tăng lượt xem lên 1 đơn vị.
+    /// </remarks>
+    /// <param name="id">ID của sách</param>
+    /// <returns>Kết quả cập nhật lượt xem</returns>
+    /// <response code="200">Cập nhật lượt xem thành công</response>
+    /// <response code="404">Không tìm thấy sách</response>
+    [HttpPost("{id}/increment-views")]
+    [ProducesResponseType(typeof(Result), 200)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Tăng lượt xem cho sách",
+        Description = "API tăng lượt xem khi người dùng bấm vào nút đọc sách",
+        OperationId = "User_IncrementBookViews",
+        Tags = new[] { "User", "User_Book" }
+    )]
+    public async Task<IActionResult> IncrementBookViews(Guid id)
+    {
+        var command = new IncrementBookViewsCommand(id);
+        var result = await _mediator.Send(command);
         
         if (!result.IsSuccess)
             return StatusCode(result.GetHttpStatusCode(), result);

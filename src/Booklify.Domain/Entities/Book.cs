@@ -22,6 +22,7 @@ public class Book : BaseEntity
     public DateTime? PublishedDate { get; set; }
     public double AverageRating { get; set; } = 0;
     public int TotalRatings { get; set; } = 0;
+    public int TotalViews { get; set; } = 0;
     
     //Navigator Properties
     public virtual BookCategory? Category { get; set; }

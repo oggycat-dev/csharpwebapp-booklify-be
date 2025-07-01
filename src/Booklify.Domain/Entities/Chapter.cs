@@ -17,4 +17,5 @@ public class Chapter : BaseEntity
     public virtual Chapter? ParentChapter { get; set; }
     public virtual ICollection<Chapter> ChildChapters { get; set; } = new List<Chapter>();
     public virtual Book? Book { get; set; }
+    public virtual ICollection<ChapterNote> Notes { get; set; } = new List<ChapterNote>();
 } 

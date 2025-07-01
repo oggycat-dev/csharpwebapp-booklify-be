@@ -34,33 +34,33 @@ public class DeleteBookCommandHandler : IRequestHandler<DeleteBookCommand, Resul
 
     public async Task<Result> Handle(DeleteBookCommand command, CancellationToken cancellationToken)
     {
-        // 1. Validate user
-        var userValidationResult = await _bookBusinessLogic.ValidateUserAndGetStaffAsync(_currentUserService, _unitOfWork);
-        if (!userValidationResult.IsSuccess)
-        {
-            return Result.Failure(userValidationResult.Message, userValidationResult.ErrorCode ?? ErrorCode.Unauthorized);
-        }
-
-        var currentUserId = _currentUserService.UserId!;
-
-        // 2. Find existing book
-        var existingBook = await _unitOfWork.BookRepository.GetByIdAsync(
-            command.BookId,
-            b => b.File,
-            b => b.Chapters);
-
-        if (existingBook == null)
-        {
-            return Result.Failure("Không tìm thấy sách", ErrorCode.NotFound);
-        }
-
-        if (existingBook.IsDeleted)
-        {
-            return Result.Failure("Sách đã được xóa trước đó", ErrorCode.ValidationFailed);
-        }
-
         try
         {
+            // 1. Validate user
+            var userValidationResult = await _bookBusinessLogic.ValidateUserAndGetStaffAsync(_currentUserService, _unitOfWork);
+            if (!userValidationResult.IsSuccess)
+            {
+                return Result.Failure(userValidationResult.Message, userValidationResult.ErrorCode ?? ErrorCode.Unauthorized);
+            }
+
+            var currentUserId = _currentUserService.UserId!;
+
+            // 2. Find existing book
+            var existingBook = await _unitOfWork.BookRepository.GetByIdAsync(
+                command.BookId,
+                b => b.File,
+                b => b.Chapters);
+
+            if (existingBook == null)
+            {
+                return Result.Failure("Không tìm thấy sách", ErrorCode.NotFound);
+            }
+
+            if (existingBook.IsDeleted)
+            {
+                return Result.Failure("Sách đã được xóa trước đó", ErrorCode.ValidationFailed);
+            }
+
             // Prepare job data BEFORE transaction
             var jobData = new BookUpdateJobData
             {
@@ -71,27 +71,35 @@ public class DeleteBookCommandHandler : IRequestHandler<DeleteBookCommand, Resul
                 ShouldProcessEpub = false // No EPUB processing needed for deletion
             };
 
-            // Begin Unit of Work transaction
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                // Begin Unit of Work transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            await _unitOfWork.BookRepository.SoftDeleteAsync(existingBook, currentUserId);
-            // Commit transaction BEFORE background jobs
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                await _unitOfWork.BookRepository.SoftDeleteAsync(existingBook, currentUserId);
+                
+                // Commit transaction BEFORE background jobs
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            // Queue background cleanup jobs AFTER successful commit
-            _bookBusinessLogic.QueueBookBackgroundJobs(
-                jobData,
-                existingBook.Id,
-                currentUserId,
-                _fileBackgroundService,
-                _epubService,
-                _logger);
+                // Queue background cleanup jobs AFTER successful commit
+                _bookBusinessLogic.QueueBookBackgroundJobs(
+                    jobData,
+                    existingBook.Id,
+                    currentUserId,
+                    _fileBackgroundService,
+                    _epubService,
+                    _logger);
 
-            return Result.Success("Xóa sách thành công");
+                return Result.Success("Xóa sách thành công");
+            }
+            catch (Exception)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Error deleting book with ID: {BookId}", command.BookId);
             return Result.Failure("Lỗi khi xóa sách", ErrorCode.InternalError);
         }
