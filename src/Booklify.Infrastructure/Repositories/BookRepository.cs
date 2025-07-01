@@ -138,6 +138,17 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             predicate = predicate.CombineAnd(b => b.TotalRatings >= filter.MinTotalRatings.Value);
         }
         
+        // Views filters
+        if (filter.MinTotalViews.HasValue)
+        {
+            predicate = predicate.CombineAnd(b => b.TotalViews >= filter.MinTotalViews.Value);
+        }
+        
+        if (filter.MaxTotalViews.HasValue)
+        {
+            predicate = predicate.CombineAnd(b => b.TotalViews <= filter.MaxTotalViews.Value);
+        }
+        
         return predicate;
     }
 
@@ -164,6 +175,7 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
             "createdat" => b => b.CreatedAt,
             "rating" or "averagerating" => b => b.AverageRating,
             "totalratings" => b => b.TotalRatings,
+            "totalviews" or "views" => b => b.TotalViews,
             _ => b => b.CreatedAt // Default to CreatedAt for unrecognized properties
         };
     }

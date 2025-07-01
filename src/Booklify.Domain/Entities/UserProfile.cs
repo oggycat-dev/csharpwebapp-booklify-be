@@ -75,4 +75,9 @@ public class UserProfile : BaseEntity
     /// Navigation property to user subscriptions
     /// </summary>
     public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
+
+    /// <summary>
+    /// Navigation property to chapter notes
+    /// </summary>
+    public virtual ICollection<ChapterNote> ChapterNotes { get; set; } = new List<ChapterNote>();
 } 

@@ -7,6 +7,7 @@ using Booklify.Application.Common.DTOs.BookCategory;
 using Booklify.Application.Common.DTOs.Subscription;
 using Booklify.Domain.Enums;
 using Booklify.Application.Common.DTOs.Book;
+using Booklify.Application.Common.DTOs.ChapterNote;
 
 namespace Booklify.Application.Common.Mappings;
 
@@ -230,6 +231,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.HasChapters, opt => opt.MapFrom(src => src.Chapters != null && src.Chapters.Any()))
             .ForMember(dest => dest.AverageRating, opt => opt.MapFrom(src => src.AverageRating))
             .ForMember(dest => dest.TotalRatings, opt => opt.MapFrom(src => src.TotalRatings))
+            .ForMember(dest => dest.TotalViews, opt => opt.MapFrom(src => src.TotalViews))
             .ForMember(dest => dest.PublishedDate, opt => opt.MapFrom(src => src.PublishedDate))
             .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => src.Tags));
 
@@ -248,7 +250,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ModifiedAt, opt => opt.MapFrom(src => src.ModifiedAt))
             // URL and Chapters will be set in business logic
             .ForMember(dest => dest.FileUrl, opt => opt.Ignore())
-            .ForMember(dest => dest.Chapters, opt => opt.Ignore());
+            .ForMember(dest => dest.Chapters, opt => opt.Ignore())
+            .ForMember(dest => dest.IsChaptersLimited, opt => opt.Ignore());
 
         // Map Chapter to ChapterResponse
         CreateMap<Domain.Entities.Chapter, Booklify.Application.Common.DTOs.Book.ChapterResponse>()
@@ -259,6 +262,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi))
             .ForMember(dest => dest.ParentChapterId, opt => opt.MapFrom(src => src.ParentChapterId))
             .ForMember(dest => dest.ChildChapters, opt => opt.Ignore()); // Will be mapped manually for nested structure
+
         // Subscription mappings
         CreateMap<Domain.Entities.Subscription, SubscriptionResponse>()
             .ForMember(dest => dest.Features, opt => opt.MapFrom(src => 
@@ -270,6 +274,37 @@ public class MappingProfile : Profile
         CreateMap<Domain.Entities.Payment, PaymentStatusResponse>()
             .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.SubscriptionActivated, opt => opt.Ignore());
+
+        // ChapterNote mappings
+        CreateMap<ChapterNote, ChapterNoteListItemResponse>()
+            // Map from BaseEntity
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            // Map from ChapterNote
+            .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
+            .ForMember(dest => dest.PageNumber, opt => opt.MapFrom(src => src.PageNumber))
+            .ForMember(dest => dest.NoteType, opt => opt.MapFrom(src => src.NoteType))
+            .ForMember(dest => dest.NoteTypeName, opt => opt.MapFrom(src => src.NoteType.ToString()))
+            .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi));
+        
+        CreateMap<ChapterNote, ChapterNoteResponse>()
+            .IncludeBase<ChapterNote, ChapterNoteListItemResponse>()
+            // Map nullable fields with null condition
+            .ForMember(dest => dest.HighlightedText, opt => opt.MapFrom(src => src.HighlightedText))
+            .ForMember(dest => dest.Color, opt => opt.MapFrom(src => src.Color))
+            // Map from navigation properties with null checks
+            .ForMember(dest => dest.ChapterTitle, opt => opt.MapFrom(src => 
+                src.Chapter != null ? src.Chapter.Title : string.Empty))
+            .ForMember(dest => dest.ChapterOrder, opt => opt.MapFrom(src => 
+                src.Chapter != null ? src.Chapter.Order : 0))
+            .ForMember(dest => dest.BookId, opt => opt.MapFrom(src => 
+                src.Chapter != null ? src.Chapter.BookId : Guid.Empty))
+            .ForMember(dest => dest.BookTitle, opt => opt.MapFrom(src => 
+                src.Chapter != null && src.Chapter.Book != null ? src.Chapter.Book.Title : string.Empty));
+        
+        CreateMap<CreateChapterNoteRequest, ChapterNote>();
+        
+        CreateMap<UpdateChapterNoteRequest, ChapterNote>()
+            .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
     }
 
     // Helper method to get display name from user profiles

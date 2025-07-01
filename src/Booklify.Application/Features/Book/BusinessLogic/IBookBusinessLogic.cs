@@ -90,13 +90,14 @@ public interface IBookBusinessLogic
         IFileService fileService);
 
     /// <summary>
-    /// Get book by ID with enrichment
+    /// Get book by ID with role-based access control and status validation
     /// </summary>
     Task<Result<BookResponse>> GetBookByIdAsync(
         Guid bookId,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IFileService fileService);
+        IFileService fileService,
+        ICurrentUserService? currentUserService = null);
 
     /// <summary>
     /// Get paged books with basic information for client view

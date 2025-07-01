@@ -49,6 +49,11 @@ public interface IUnitOfWork : IDisposable
     IChapterAIResultRepository ChapterAIResultRepository { get; }
 
     /// <summary>
+    /// The chapter note repository
+    /// </summary>
+    IChapterNoteRepository ChapterNoteRepository { get; }
+
+    /// <summary>
     /// Begin a transaction
     /// </summary>
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

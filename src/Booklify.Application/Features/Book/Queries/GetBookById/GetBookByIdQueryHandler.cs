@@ -13,6 +13,7 @@ public class GetBookByIdQueryHandler : IRequestHandler<GetBookByIdQuery, Result<
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IFileService _fileService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<GetBookByIdQueryHandler> _logger;
     private readonly IBookBusinessLogic _bookBusinessLogic;
     
@@ -20,12 +21,14 @@ public class GetBookByIdQueryHandler : IRequestHandler<GetBookByIdQuery, Result<
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IFileService fileService,
+        ICurrentUserService currentUserService,
         ILogger<GetBookByIdQueryHandler> logger,
         IBookBusinessLogic bookBusinessLogic)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _fileService = fileService;
+        _currentUserService = currentUserService;
         _logger = logger;
         _bookBusinessLogic = bookBusinessLogic;
     }
@@ -38,7 +41,8 @@ public class GetBookByIdQueryHandler : IRequestHandler<GetBookByIdQuery, Result<
                 request.BookId, 
                 _unitOfWork, 
                 _mapper, 
-                _fileService);
+                _fileService,
+                _currentUserService);
         }
         catch (Exception ex)
         {

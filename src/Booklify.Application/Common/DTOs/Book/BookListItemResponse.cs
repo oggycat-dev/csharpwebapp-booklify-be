@@ -34,6 +34,9 @@ public class BookListItemResponse
     [JsonPropertyName("total_ratings")]
     public int TotalRatings { get; set; }
 
+    [JsonPropertyName("total_views")]
+    public int TotalViews { get; set; }
+
     [JsonPropertyName("published_date")]
     public DateTime? PublishedDate { get; set; }
 

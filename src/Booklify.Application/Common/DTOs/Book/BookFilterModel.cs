@@ -88,6 +88,16 @@ public class BookFilterModel : FilterBase
     /// </summary>
     public int? MinTotalRatings { get; set; }
     
+    /// <summary>
+    /// Lọc theo số lượt xem tối thiểu
+    /// </summary>
+    public int? MinTotalViews { get; set; }
+    
+    /// <summary>
+    /// Lọc theo số lượt xem tối đa
+    /// </summary>
+    public int? MaxTotalViews { get; set; }
+    
     public BookFilterModel() : base()
     {
     }

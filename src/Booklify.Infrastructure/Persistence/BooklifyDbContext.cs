@@ -34,6 +34,7 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
     public DbSet<Book> Books { get; set; }
     public DbSet<BookCategory> BookCategories { get; set; }
     public DbSet<Chapter> Chapters { get; set; }
+    public DbSet<ChapterNote> ChapterNotes { get; set; }
     
     // AI-related entities
     public DbSet<ChapterAIResult> ChapterAIResults { get; set; }
@@ -382,6 +383,43 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
             // Add indexes
             entity.HasIndex(c => c.ChapterId);
             entity.HasIndex(c => c.Status);
+        });
+
+        // Configure ChapterNote
+        builder.Entity<ChapterNote>(entity =>
+        {
+            entity.ToTable("ChapterNotes");
+            
+            // Required fields
+            entity.Property(n => n.Content).IsRequired();
+            entity.Property(n => n.PageNumber).IsRequired();
+            entity.Property(n => n.Cfi).IsRequired(false);
+            entity.Property(n => n.HighlightedText).IsRequired(false);
+            entity.Property(n => n.Color).IsRequired(false);
+            
+            // Convert Status enum to int
+            entity.Property(n => n.Status)
+                .HasConversion<int>();
+            
+            // Configure relationships
+            entity.HasOne(n => n.Chapter)
+                .WithMany(c => c.Notes)
+                .HasForeignKey(n => n.ChapterId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(n => n.User)
+                .WithMany(u => u.ChapterNotes)
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Add indexes for performance
+            entity.HasIndex(n => n.ChapterId);
+            entity.HasIndex(n => n.UserId);
+            entity.HasIndex(n => n.Status);
+            
+            // Composite indexes for common queries
+            entity.HasIndex(n => new { n.ChapterId, n.UserId });
+            entity.HasIndex(n => new { n.UserId, n.Status });
         });
 
         // Identity-related configurations

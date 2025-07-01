@@ -66,68 +66,75 @@ public class CreateBookCommandHandler : IRequestHandler<CreateBookCommand, Resul
                 return Result<BookResponse>.Failure(categoryValidation.Message, categoryValidation.ErrorCode ?? ErrorCode.ValidationFailed);
             }
 
-            // Begin Unit of Work transaction
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-            // Create and upload file
-            var fileResult = await _bookBusinessLogic.CreateBookFileAsync(
-                command.Request.File, "books", currentUserId, _fileService, _storageService, _unitOfWork);
-                
-            if (!fileResult.IsSuccess)
+            try
             {
-                return Result<BookResponse>.Failure(fileResult.Message, fileResult.ErrorCode ?? ErrorCode.FileUploadFailed);
-            }
+                // Begin Unit of Work transaction
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var fileInfo = fileResult.Data;
-
-            // Create book entity
-            var bookResult = await _bookBusinessLogic.CreateBookEntityAsync(
-                command.Request, staff, fileInfo, currentUserId, _mapper, _unitOfWork);
-                
-            if (!bookResult.IsSuccess)
-            {
-                return Result<BookResponse>.Failure(bookResult.Message, bookResult.ErrorCode ?? ErrorCode.InternalError);
-            }
-
-            var book = bookResult.Data;
-
-            // Check if file is EPUB BEFORE commit for background processing
-            var shouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(fileInfo.Extension);
-            
-            // Commit transaction BEFORE background jobs
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            // Queue EPUB processing AFTER successful commit
-            if (shouldProcessEpub)
-            {
-                try
+                // Create and upload file
+                var fileResult = await _bookBusinessLogic.CreateBookFileAsync(
+                    command.Request.File, "books", currentUserId, _fileService, _storageService, _unitOfWork);
+                    
+                if (!fileResult.IsSuccess)
                 {
-                    _logger.LogInformation("Detected EPUB file for book {BookId} (extension: {Extension}), queueing background processing", 
+                    return Result<BookResponse>.Failure(fileResult.Message, fileResult.ErrorCode ?? ErrorCode.FileUploadFailed);
+                }
+
+                var fileInfo = fileResult.Data;
+
+                // Create book entity
+                var bookResult = await _bookBusinessLogic.CreateBookEntityAsync(
+                    command.Request, staff, fileInfo, currentUserId, _mapper, _unitOfWork);
+                    
+                if (!bookResult.IsSuccess)
+                {
+                    return Result<BookResponse>.Failure(bookResult.Message, bookResult.ErrorCode ?? ErrorCode.InternalError);
+                }
+
+                var book = bookResult.Data;
+
+                // Check if file is EPUB BEFORE commit for background processing
+                var shouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(fileInfo.Extension);
+                
+                // Commit transaction BEFORE background jobs
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                // Queue EPUB processing AFTER successful commit
+                if (shouldProcessEpub)
+                {
+                    try
+                    {
+                        _logger.LogInformation("Detected EPUB file for book {BookId} (extension: {Extension}), queueing background processing", 
+                            book.Id, fileInfo.Extension);
+                        var jobId = _epubService.ProcessEpubFile(book.Id, currentUserId);
+                        _logger.LogInformation("EPUB processing job queued with ID: {JobId} for book {BookId}", jobId, book.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to queue EPUB processing for book: {BookId}", book.Id);
+                        // Background job failure doesn't affect main operation - book was created successfully
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Book {BookId} is not EPUB (extension: {Extension}), skipping EPUB processing", 
                         book.Id, fileInfo.Extension);
-                    var jobId = _epubService.ProcessEpubFile(book.Id, currentUserId);
-                    _logger.LogInformation("EPUB processing job queued with ID: {JobId} for book {BookId}", jobId, book.Id);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to queue EPUB processing for book: {BookId}", book.Id);
-                    // Background job failure doesn't affect main operation - book was created successfully
-                }
+                
+                // Create response
+                var response = _mapper.Map<BookResponse>(book);
+                response = _bookBusinessLogic.EnrichBookResponse(response, book, _fileService);
+                
+                return Result<BookResponse>.Success(response, "Tạo sách thành công");
             }
-            else
+            catch (Exception)
             {
-                _logger.LogInformation("Book {BookId} is not EPUB (extension: {Extension}), skipping EPUB processing", 
-                    book.Id, fileInfo.Extension);
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
             }
-            
-            // Create response
-            var response = _mapper.Map<BookResponse>(book);
-            response = _bookBusinessLogic.EnrichBookResponse(response, book, _fileService);
-            
-            return Result<BookResponse>.Success(response, "Tạo sách thành công");
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Lỗi khi tạo sách");
             return Result<BookResponse>.Failure("Lỗi khi tạo sách", ErrorCode.InternalError);
         }
