@@ -24,8 +24,9 @@ public class Book : BaseEntity
     public int TotalRatings { get; set; } = 0;
     public int TotalViews { get; set; } = 0;
     
-    //Navigator Properties
+    //Navigation Properties
     public virtual BookCategory? Category { get; set; }
     public virtual FileInfo? File { get; set; }
     public virtual ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
+    public virtual ICollection<ReadingProgress> ReadingProgresses { get; set; } = new List<ReadingProgress>();
 }

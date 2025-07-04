@@ -80,4 +80,9 @@ public class UserProfile : BaseEntity
     /// Navigation property to chapter notes
     /// </summary>
     public virtual ICollection<ChapterNote> ChapterNotes { get; set; } = new List<ChapterNote>();
+    
+    /// <summary>
+    /// Navigation property to reading progress
+    /// </summary>
+    public virtual ICollection<ReadingProgress> ReadingProgresses { get; set; } = new List<ReadingProgress>();
 } 

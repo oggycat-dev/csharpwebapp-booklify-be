@@ -11,6 +11,7 @@ using Booklify.Application.Features.Book.Commands.DeleteBook;
 using Booklify.Application.Features.Book.Commands.ManageBookStatus;
 using Booklify.Application.Features.Book.Queries.GetBooks;
 using Booklify.Application.Features.Book.Queries.GetBookById;
+using Booklify.Application.Features.Book.Queries.DownloadBook;
 using Booklify.Domain.Enums;
 using Booklify.API.Attributes;
 using Swashbuckle.AspNetCore.Annotations;
@@ -461,5 +462,45 @@ public class BookController : ControllerBase
             return StatusCode(result.GetHttpStatusCode(), result);
             
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Download file sách
+    /// </summary>
+    /// <remarks>
+    /// API download file sách cho Admin/Staff. Không bị giới hạn bởi subscription hoặc trạng thái sách.
+    /// </remarks>
+    /// <param name="id">ID của sách</param>
+    /// <returns>File sách để download</returns>
+    /// <response code="200">Download file thành công</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn</response>
+    /// <response code="404">Không tìm thấy sách hoặc sách không có file</response>
+    [HttpGet("{id}/download")]
+    [ProducesResponseType(typeof(FileResult), 200)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Download file sách",
+        Description = "Download file sách cho Admin/Staff - không giới hạn subscription",
+        OperationId = "Admin_DownloadBook",
+        Tags = new[] { "Admin", "Admin_Book" }
+    )]
+    public async Task<IActionResult> DownloadBook(Guid id)
+    {
+        var query = new DownloadBookQuery(id);
+        var result = await _mediator.Send(query);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        var downloadData = result.Data;
+        
+        // Return file với proper headers
+        return File(
+            downloadData.FileContent,
+            downloadData.ContentType,
+            downloadData.FileName);
     }
 } 

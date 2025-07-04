@@ -12,6 +12,13 @@ public class CreateStaffCommandValidator : AbstractValidator<CreateStaffCommand>
         _unitOfWork = unitOfWork;
         RuleFor(x => x.Request.FirstName).NotEmpty().WithMessage("First name is required");
         RuleFor(x => x.Request.LastName).NotEmpty().WithMessage("Last name is required");
+        RuleFor(x => x.Request.StaffCode).NotEmpty().WithMessage("Staff code is required")
+            .MustAsync(async (staffCode, cancellationToken) =>
+            {
+                var isExist = await _unitOfWork.StaffProfileRepository.AnyAsync(x => x.StaffCode == staffCode);
+                return !isExist;
+            })
+            .WithMessage("Staff code already exists");
         RuleFor(x => x.Request.Email).NotEmpty().WithMessage("Email is required")
             .EmailAddress().WithMessage("Invalid email address");
         RuleFor(x => x.Request.Email).MustAsync(async (email, cancellationToken) =>

@@ -5,6 +5,7 @@ using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Book;
 using Booklify.Application.Features.Book.Queries.GetBooks;
 using Booklify.Application.Features.Book.Queries.GetBookById;
+using Booklify.Application.Features.Book.Queries.DownloadBook;
 using Booklify.Application.Features.Book.Commands.IncrementBookViews;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
@@ -188,5 +189,43 @@ public class BookController : ControllerBase
             return StatusCode(result.GetHttpStatusCode(), result);
             
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Download file sách
+    /// </summary>
+    /// <remarks>
+    /// API download sách với kiểm tra quyền truy cập. Sách premium yêu cầu subscription active.
+    /// </remarks>
+    /// <param name="id">ID của sách</param>
+    /// <returns>File sách để download</returns>
+    /// <response code="200">Download file thành công</response>
+    /// <response code="403">Sách premium yêu cầu subscription</response>
+    /// <response code="404">Không tìm thấy sách hoặc sách không có file</response>
+    [HttpGet("{id}/download")]
+    [ProducesResponseType(typeof(FileResult), 200)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Download file sách",
+        Description = "Download file sách với kiểm tra subscription cho premium content",
+        OperationId = "User_DownloadBook",
+        Tags = new[] { "User", "User_Book" }
+    )]
+    public async Task<IActionResult> DownloadBook(Guid id)
+    {
+        var query = new DownloadBookQuery(id);
+        var result = await _mediator.Send(query);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        var downloadData = result.Data;
+        
+        // Return file với proper headers
+        return File(
+            downloadData.FileContent,
+            downloadData.ContentType,
+            downloadData.FileName);
     }
 } 
