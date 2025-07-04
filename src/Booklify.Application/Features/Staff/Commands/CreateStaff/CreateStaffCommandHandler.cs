@@ -59,21 +59,15 @@ public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Res
                 TransactionScopeAsyncFlowOption.Enabled
             ))
             {
-                // 1. Create staff profile first
-                staffProfile = _mapper.Map<StaffProfile>(command.Request);
-                BaseEntityExtensions.InitializeBaseEntity(staffProfile, currentUserId);
-                
-                // 2. Create user for identity
+                // 1. Create user for identity first
                 var user = new AppUser
                 {
                     UserName = command.Request.Email,
+                    Email = command.Request.Email,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
-                    EntityId = staffProfile.Id,
                     EmailConfirmed = true
                 };
-                
-                staffProfile.IdentityUserId = user.Id;
 
                 var createdUserResult = await _identityService.RegisterAsync(user, command.Request.Password);
                 if (!createdUserResult.IsSuccess)
@@ -83,7 +77,7 @@ public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Res
                         ErrorCode.InternalError);
                 }
                 
-                // 4. Assign Staff role
+                // 2. Assign Staff role
                 var roleResult = await _identityService.AddToRoleAsync(createdUserResult.Data!, Role.Staff.ToString());
                 if (!roleResult.Succeeded)
                 {
@@ -92,7 +86,21 @@ public class CreateStaffCommandHandler : IRequestHandler<CreateStaffCommand, Res
                         ErrorCode.InternalError);
                 }
 
+                // 3. Create staff profile with correct IdentityUserId
+                staffProfile = _mapper.Map<StaffProfile>(command.Request);
+                BaseEntityExtensions.InitializeBaseEntity(staffProfile, currentUserId);
+                staffProfile.IdentityUserId = createdUserResult.Data!.Id;
+
                 await _unitOfWork.StaffProfileRepository.AddAsync(staffProfile);
+                
+                // 4. Update user EntityId to link back to staff profile
+                var updateEntityResult = await _identityService.UpdateEntityIdAsync(createdUserResult.Data.Id, staffProfile.Id);
+                if (!updateEntityResult.IsSuccess)
+                {
+                    _logger.LogWarning("Failed to update user EntityId for staff profile linking: {Error}", updateEntityResult.Message);
+                    // This is not critical enough to fail the entire operation
+                }
+                
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 
                 scope.Complete();

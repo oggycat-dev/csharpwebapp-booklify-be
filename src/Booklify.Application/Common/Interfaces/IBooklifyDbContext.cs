@@ -23,6 +23,7 @@ namespace Booklify.Application.Common.Interfaces
         DbSet<AppUser> IdentityUsers { get; set; }
         DbSet<AppRole> IdentityRoles { get; set; }
         DbSet<ChapterNote> ChapterNotes { get; set; }
+        DbSet<ReadingProgress> ReadingProgresses { get; set; }
         
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
