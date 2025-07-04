@@ -52,6 +52,10 @@ public static class SwaggerConfiguration
                 {
                     mainTag = "User";
                 }
+                else if (relativePath?.Contains("/common/") == true)
+                {
+                    mainTag = "Common";
+                }
                 else
                 {
                     mainTag = "Public";

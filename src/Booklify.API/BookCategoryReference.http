@@ -1,0 +1,5 @@
+### Test Book Categories API
+GET {{baseUrl}}/api/common/reference/book-categories
+Accept: application/json
+
+###
