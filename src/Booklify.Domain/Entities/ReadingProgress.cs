@@ -25,7 +25,7 @@ public class ReadingProgress : BaseEntity
     public int TotalReadingTimeMinutes { get; set; } = 0; // Total time spent reading
     public DateTime LastReadAt { get; set; }
     public DateTime? SessionStartTime { get; set; } // Current session start time
-    
+
     // Overall progress (combining CFI + chapter completion)
     public double OverallProgressPercentage { get; set; } = 0; // Smart combined percentage
 
