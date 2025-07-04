@@ -8,6 +8,7 @@ using Booklify.Application.Common.DTOs.Staff;
 using Booklify.Application.Features.Staff.Commands.CreateStaff;
 using Booklify.Application.Features.Staff.Commands.UpdateStaff;
 using Booklify.Application.Features.Staff.Queries.GetStaffs;
+using Booklify.Application.Features.Staff.Queries.GetStaffById;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -202,6 +203,37 @@ public class StaffController : ControllerBase
     {
         var command = new UpdateStaffCommand(id, request);
         var result = await _mediator.Send(command);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy thông tin chi tiết của một nhân viên theo ID
+    /// </summary>
+    /// <param name="id">ID của nhân viên cần xem thông tin</param>
+    /// <returns>Thông tin chi tiết của nhân viên</returns>
+    /// <response code="200">Lấy thông tin thành công</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
+    /// <response code="404">Không tìm thấy nhân viên</response>
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(Result<StaffResponse>), 200)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Lấy thông tin chi tiết của một nhân viên",
+        Description = "API lấy thông tin chi tiết của một nhân viên theo ID. Chỉ Admin mới có quyền truy cập.",
+        OperationId = "Admin_GetStaffById",
+        Tags = new[] { "Admin", "Admin_Staff" }
+    )]
+    public async Task<IActionResult> GetStaffById([FromRoute] Guid id)
+    {
+        var query = new GetStaffByIdQuery(id);
+        var result = await _mediator.Send(query);
         
         if (!result.IsSuccess)
             return StatusCode(result.GetHttpStatusCode(), result);
