@@ -74,6 +74,13 @@ public class ManageBookStatusCommandHandler : IRequestHandler<ManageBookStatusCo
             {
                 await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
+                // Update book status (Active/Inactive)
+                if (request.Status.HasValue && request.Status != existingBook.Status)
+                {
+                    existingBook.Status = request.Status.Value;
+                    hasChanges = true;
+                }
+
                 // Update approval status
                 if (request.ApprovalStatus.HasValue && request.ApprovalStatus != existingBook.ApprovalStatus)
                 {
@@ -97,7 +104,10 @@ public class ManageBookStatusCommandHandler : IRequestHandler<ManageBookStatusCo
 
                 if (!hasChanges)
                 {
-                    return Result<BookResponse>.Success(null, "Không có thay đổi nào được phát hiện");
+                    // Map current book to response when no changes
+                    var currentResponse = _mapper.Map<BookResponse>(existingBook);
+                    currentResponse = _bookBusinessLogic.EnrichBookResponse(currentResponse, existingBook, _fileService);
+                    return Result<BookResponse>.Success(currentResponse, "Không có thay đổi nào được phát hiện");
                 }
 
                 // Update audit fields

@@ -58,7 +58,6 @@ public class GetEntityStatusesQueryHandler : IRequestHandler<GetEntityStatusesQu
         {
             EntityStatus.Inactive => "Không hoạt động",
             EntityStatus.Active => "Đang hoạt động",
-            EntityStatus.Pending => "Chờ xử lý",
             _ => string.Empty
         };
     }

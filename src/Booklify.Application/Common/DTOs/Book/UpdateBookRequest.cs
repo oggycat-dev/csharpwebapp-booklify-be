@@ -43,18 +43,6 @@ public class UpdateBookRequest
     public Guid? CategoryId { get; set; }
 
     /// <summary>
-    /// Trạng thái sách
-    /// </summary>
-    [JsonPropertyName("status")]
-    public EntityStatus? Status { get; set; }
-
-    /// <summary>
-    /// Sách có phí hay không
-    /// </summary>
-    [JsonPropertyName("is_premium")]
-    public bool? IsPremium { get; set; }
-
-    /// <summary>
     /// Thẻ tag của sách (phân cách bằng dấu phẩy)
     /// </summary>
     [JsonPropertyName("tags")]

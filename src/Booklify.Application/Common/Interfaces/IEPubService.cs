@@ -1,3 +1,4 @@
+using Booklify.Application.Common.DTOs.Book;
 using Booklify.Domain.Entities;
 using Booklify.Domain.Enums;
 
@@ -14,7 +15,17 @@ public interface IEPubService
     Task<List<Chapter>> ExtractChapters(string epubFilePath);
 
     /// <summary>
+    /// Extract metadata from an EPUB file
+    /// </summary>
+    Task<EpubMetadataDto> ExtractMetadataAsync(string epubFilePath);
+
+    /// <summary>
     /// Process an EPUB file and queue background operations
     /// </summary>
     string ProcessEpubFile(Guid bookId, string userId = "", FileUploadType uploadType = FileUploadType.None);
+
+    /// <summary>
+    /// Process an EPUB file with pre-downloaded content and queue background operations
+    /// </summary>
+    string ProcessEpubFileWithContent(Guid bookId, string userId, byte[] fileContent, string fileExtension);
 } 

@@ -17,6 +17,8 @@ namespace Booklify.Application.Features.Book.BusinessLogic;
 /// </summary>
 public class BookBusinessLogic : IBookBusinessLogic
 {
+    
+
     /// <summary>
     /// Validate user authentication and get staff information
     /// </summary>
@@ -158,11 +160,309 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
+    /// Create book with complete EPUB processing workflow
+    /// </summary>
+    public async Task<Result<Domain.Entities.Book>> CreateBookWithEpubProcessingAsync(
+        object bookRequest,
+        StaffProfile staff,
+        Domain.Entities.FileInfo fileInfo,
+        string userId,
+        IMapper mapper,
+        IUnitOfWork unitOfWork,
+        IEPubService epubService,
+        IStorageService storageService,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        // Create book entity first
+        var bookResult = await CreateBookEntityAsync(bookRequest, staff, fileInfo, userId, mapper, unitOfWork);
+        if (!bookResult.IsSuccess)
+        {
+            return bookResult;
+        }
+
+        var book = bookResult.Data!;
+
+        // Check if file is EPUB and extract metadata
+        var shouldProcessEpub = ShouldProcessEpub(fileInfo.Extension ?? string.Empty);
+        if (shouldProcessEpub)
+        {
+            try
+            {
+                logger.LogInformation("Detected EPUB file for book {BookId}, extracting metadata immediately", book.Id);
+                
+                // Extract metadata and apply to book entity (without calling UpdateAsync since entity is already being tracked)
+                var metadataResult = await ExtractAndApplyEpubMetadataAsync(
+                    book, fileInfo, epubService, storageService, logger);
+                
+                if (metadataResult.IsSuccess)
+                {
+                    // No need to call UpdateAsync - Entity Framework will track changes automatically
+                    logger.LogInformation("Successfully applied EPUB metadata to book {BookId}", book.Id);
+                }
+                else
+                {
+                    logger.LogWarning("Failed to extract EPUB metadata for book {BookId}: {Message}", 
+                        book.Id, metadataResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to extract EPUB metadata during book creation for book {BookId}", book.Id);
+                // Continue with book creation even if metadata extraction fails
+            }
+        }
+
+        return Result<Domain.Entities.Book>.Success(book);
+    }
+
+    /// <summary>
+    /// Extract metadata from EPUB and apply to book entity
+    /// </summary>
+    private async Task<Result<bool>> ExtractAndApplyEpubMetadataAsync(
+        Domain.Entities.Book book,
+        Domain.Entities.FileInfo fileInfo,
+        IEPubService epubService,
+        IStorageService storageService,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        try
+        {
+            // Get temporary file path for metadata extraction
+            var tempFilePath = Path.GetTempFileName();
+            tempFilePath = Path.ChangeExtension(tempFilePath, ".epub");
+            
+            byte[]? epubFileContent = null;
+            
+            // Read file content from storage 
+            var fileStream = await storageService.DownloadFileAsync(fileInfo.FilePath!);
+            if (fileStream != null)
+            {
+                using var memoryStream = new MemoryStream();
+                await fileStream.CopyToAsync(memoryStream);
+                epubFileContent = memoryStream.ToArray();
+                await File.WriteAllBytesAsync(tempFilePath, epubFileContent);
+                fileStream.Dispose();
+            }
+            else
+            {
+                logger.LogError("Failed to download EPUB file for metadata extraction");
+                return Result<bool>.Failure("Could not download EPUB file for metadata extraction");
+            }
+            
+            // Extract metadata from EPUB
+            var epubMetadata = await epubService.ExtractMetadataAsync(tempFilePath);
+            
+            // Apply metadata to book
+            if (epubMetadata != null)
+            {
+                ApplyEpubMetadataToBook(book, epubMetadata, logger);
+                
+                // Upload cover image if available
+                if (epubMetadata.CoverImageBytes != null && epubMetadata.CoverImageBytes.Length > 0)
+                {
+                    var coverImageUrl = await UploadCoverImageAsync(
+                        epubMetadata.CoverImageBytes, storageService, logger);
+                    
+                    if (!string.IsNullOrEmpty(coverImageUrl))
+                    {
+                        book.CoverImageUrl = coverImageUrl;
+                    }
+                }
+                
+                // Note: Background job for chapter processing will be queued after transaction commit
+                // This ensures the book exists in the database before background processing
+            }
+            
+            // Clean up temporary file
+            if (File.Exists(tempFilePath))
+                File.Delete(tempFilePath);
+                
+            return Result<bool>.Success(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during EPUB metadata extraction for book {BookId}", book.Id);
+            return Result<bool>.Failure($"EPUB metadata extraction failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Apply extracted EPUB metadata to book entity
+    /// </summary>
+    private void ApplyEpubMetadataToBook(
+        Domain.Entities.Book book, 
+        EpubMetadataDto epubMetadata, 
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        // Set basic metadata
+        if (!string.IsNullOrWhiteSpace(epubMetadata.Title))
+        {
+            book.Title = epubMetadata.Title;
+            logger.LogDebug("Applied title: {Title}", epubMetadata.Title);
+        }
+        
+        if (!string.IsNullOrWhiteSpace(epubMetadata.Author))
+        {
+            book.Author = epubMetadata.Author;
+            logger.LogDebug("Applied author: {Author}", epubMetadata.Author);
+        }
+        
+        if (!string.IsNullOrWhiteSpace(epubMetadata.Publisher))
+        {
+            book.Publisher = epubMetadata.Publisher;
+            logger.LogDebug("Applied publisher: {Publisher}", epubMetadata.Publisher);
+        }
+        
+        if (!string.IsNullOrWhiteSpace(epubMetadata.Description))
+        {
+            book.Description = epubMetadata.Description;
+            logger.LogDebug("Applied description length: {Length}", epubMetadata.Description.Length);
+        }
+        
+        // Note: ISBN is not extracted from EPUB metadata, it comes from user input only
+        
+        // Set other metadata
+        if (epubMetadata.PublishedDate.HasValue)
+        {
+            book.PublishedDate = epubMetadata.PublishedDate;
+            logger.LogDebug("Applied published date: {PublishedDate}", epubMetadata.PublishedDate);
+        }
+        
+        if (epubMetadata.TotalPages > 0)
+        {
+            book.PageCount = epubMetadata.TotalPages;
+            logger.LogDebug("Applied page count: {PageCount}", epubMetadata.TotalPages);
+        }
+        
+        logger.LogInformation("Successfully applied EPUB metadata: Title={Title}, Author={Author}, Publisher={Publisher}", 
+            epubMetadata.Title, epubMetadata.Author, epubMetadata.Publisher);
+    }
+
+    /// <summary>
+    /// Upload cover image to storage
+    /// </summary>
+    private async Task<string?> UploadCoverImageAsync(
+        byte[] coverImageBytes, 
+        IStorageService storageService, 
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        try
+        {
+            var originalFileName = $"epub-cover-{Guid.NewGuid()}.jpg";
+            var fileName = $"{DateTime.UtcNow:yyyyMMdd_HHmmss}_{originalFileName}";
+            using var memoryStream = new MemoryStream(coverImageBytes);
+            
+            var coverImageUrl = await storageService.UploadFileAsync(
+                memoryStream, 
+                fileName, 
+                "image/jpeg", 
+                "books/covers"
+            );
+            
+            logger.LogInformation("Uploaded cover image for EPUB book: {CoverImageUrl}", coverImageUrl);
+            return coverImageUrl;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to upload cover image");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Queue EPUB processing job for chapter extraction
+    /// </summary>
+    private void QueueEpubProcessingJob(
+        Guid bookId,
+        string userId,
+        byte[] epubFileContent,
+        string fileExtension,
+        IEPubService epubService,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Queueing EPUB processing job for book {BookId} with file content", bookId);
+            var jobId = epubService.ProcessEpubFileWithContent(bookId, userId, epubFileContent, fileExtension);
+            logger.LogInformation("EPUB processing job queued with ID: {JobId} for book {BookId}", jobId, bookId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to queue EPUB processing for book: {BookId}", bookId);
+            // Background job failure doesn't affect main operation - book was created successfully
+        }
+    }
+
+    /// <summary>
+    /// Update book with complete EPUB processing workflow (for new file uploads)
+    /// </summary>
+    public async Task<Result<Domain.Entities.Book>> UpdateBookWithEpubProcessingAsync(
+        Domain.Entities.Book existingBook,
+        Domain.Entities.FileInfo newFileInfo,
+        string userId,
+        IUnitOfWork unitOfWork,
+        IEPubService epubService,
+        IStorageService storageService,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        // Update file information
+        existingBook.FilePath = newFileInfo.FilePath;
+        existingBook.File = newFileInfo;
+
+        // Check if file is EPUB and extract metadata
+        var shouldProcessEpub = ShouldProcessEpub(newFileInfo.Extension ?? string.Empty);
+        if (shouldProcessEpub)
+        {
+            try
+            {
+                logger.LogInformation("Detected EPUB file for book {BookId}, extracting metadata for update", existingBook.Id);
+                
+                // Extract metadata and apply to book
+                var metadataResult = await ExtractAndApplyEpubMetadataAsync(
+                    existingBook, newFileInfo, epubService, storageService, logger);
+                
+                if (metadataResult.IsSuccess)
+                {
+                    logger.LogInformation("Successfully applied EPUB metadata to existing book {BookId}", existingBook.Id);
+                }
+                else
+                {
+                    logger.LogWarning("Failed to extract EPUB metadata for book update {BookId}: {Message}", 
+                        existingBook.Id, metadataResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to extract EPUB metadata during book update for book {BookId}", existingBook.Id);
+                // Continue with book update even if metadata extraction fails
+            }
+        }
+
+        return Result<Domain.Entities.Book>.Success(existingBook);
+    }
+
+    /// <summary>
     /// Check if file is EPUB and should be processed
     /// </summary>
     public bool ShouldProcessEpub(string fileExtension)
     {
-        return fileExtension?.ToLowerInvariant() is ".epub" or "epub";
+        if (string.IsNullOrWhiteSpace(fileExtension))
+        {
+            return false;
+        }
+        
+        // Trim whitespace and convert to lowercase
+        var cleanExtension = fileExtension.Trim().ToLowerInvariant();
+        
+        // Remove leading dot if present
+        if (cleanExtension.StartsWith("."))
+        {
+            cleanExtension = cleanExtension.Substring(1);
+        }
+        
+        var isEpub = cleanExtension == "epub";
+        
+        return isEpub;
     }
 
     /// <summary>
@@ -317,9 +617,9 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
-    /// Get book by ID with role-based access control and status validation
+    /// Get book detail by ID without chapters (lighter response)
     /// </summary>
-    public async Task<Result<BookResponse>> GetBookByIdAsync(
+    public async Task<Result<BookDetailResponse>> GetBookDetailByIdAsync(
         Guid bookId,
         IUnitOfWork unitOfWork,
         IMapper mapper,
@@ -328,24 +628,21 @@ public class BookBusinessLogic : IBookBusinessLogic
     {
         try
         {
-            // Get book with related entities
+            // Get book without chapters for lighter response
             var book = await unitOfWork.BookRepository.GetByIdAsync(
                 bookId,
                 b => b.Category,
-                b => b.File,
-                b => b.Chapters);
+                b => b.File);
 
             if (book == null)
             {
-                return Result<BookResponse>.Failure("Không tìm thấy sách", ErrorCode.NotFound);
+                return Result<BookDetailResponse>.Failure("Không tìm thấy sách", ErrorCode.NotFound);
             }
 
             // Determine user role and authentication status
             bool isAuthenticated = currentUserService?.IsAuthenticated ?? false;
             var userRoles = currentUserService?.Roles?.ToList() ?? new List<string>();
             bool isAdminOrStaff = userRoles.Contains("Admin") || userRoles.Contains("Staff");
-            bool isUser = userRoles.Contains("User");
-            bool isGuest = !isAuthenticated;
 
             // Status validation based on role
             if (!isAdminOrStaff)
@@ -353,66 +650,32 @@ public class BookBusinessLogic : IBookBusinessLogic
                 // Guest and User can only see Active + Approved books
                 if (book.Status != EntityStatus.Active || book.ApprovalStatus != ApprovalStatus.Approved)
                 {
-                    return Result<BookResponse>.Failure("Không tìm thấy sách hoặc sách không được phép xem", ErrorCode.NotFound);
+                    return Result<BookDetailResponse>.Failure("Không tìm thấy sách hoặc sách không được phép xem", ErrorCode.NotFound);
                 }
             }
             // Admin/Staff can see all books regardless of status
 
             // Map to response DTO
-            var response = mapper.Map<BookResponse>(book);
+            var response = mapper.Map<BookDetailResponse>(book);
 
-            // Enrich with file URLs and additional info
-            response = EnrichBookResponse(response, book, fileService);
-
-            // Handle chapters based on role and premium status
-            if (book.Chapters != null && book.Chapters.Any())
+            // Enrich with file URLs
+            if (!string.IsNullOrEmpty(book.FilePath))
             {
-                if (book.IsPremium && !isAdminOrStaff)
-                {
-                    // Premium book for non-admin/staff users
-                    bool hasFullAccess = false;
-
-                    if (isUser && currentUserService != null)
-                    {
-                        // Check subscription for authenticated users
-                        hasFullAccess = await CheckPremiumAccessAsync(currentUserService, unitOfWork);
-                    }
-                    // Guest users (isGuest = true) will have hasFullAccess = false
-
-                    if (hasFullAccess)
-                    {
-                        // User with active subscription - build full chapters
-                        response.Chapters = MapChaptersToResponse(book.Chapters);
-                        response.IsChaptersLimited = false;
-                    }
-                    else
-                    {
-                        // Guest or User without subscription - limit to first 2 chapters
-                        var limitedChapters = book.Chapters
-                            .OrderBy(c => c.Order)
-                            .Take(2)
-                            .ToList();
-                        response.Chapters = MapChaptersToResponse(limitedChapters);
-                        response.IsChaptersLimited = true;
-                    }
-                }
-                else
-                {
-                    // Non-premium book OR Admin/Staff - build all chapters
-                    response.Chapters = MapChaptersToResponse(book.Chapters);
-                    response.IsChaptersLimited = false;
-                }
+                response.FileUrl = fileService.GetFileUrl(book.FilePath);
             }
-            else
+            if (!string.IsNullOrEmpty(book.CoverImageUrl))
             {
-                response.IsChaptersLimited = false;
+                response.CoverImageUrl = fileService.GetFileUrl(book.CoverImageUrl);
             }
 
-            return Result<BookResponse>.Success(response);
+            // Check if book has chapters (without loading them)
+            response.HasChapters = await unitOfWork.ChapterRepository.AnyAsync(c => c.BookId == bookId);
+
+            return Result<BookDetailResponse>.Success(response);
         }
         catch (Exception)
         {
-            return Result<BookResponse>.Failure("Lỗi khi lấy thông tin sách", ErrorCode.InternalError);
+            return Result<BookDetailResponse>.Failure("Lỗi khi lấy thông tin sách", ErrorCode.InternalError);
         }
     }
 
@@ -474,44 +737,102 @@ public class BookBusinessLogic : IBookBusinessLogic
     {
         var chapterList = chapters.OrderBy(c => c.Order).ToList();
         var chapterDict = new Dictionary<Guid, ChapterResponse>();
+        var rootChapters = new List<ChapterResponse>();
         
-        // Tạo tất cả chapters trước
+        // First pass: Create all chapter responses
         foreach (var chapter in chapterList)
         {
+            var title = CleanupChapterTitle(chapter.Title);
+            
             var chapterResponse = new ChapterResponse
             {
                 Id = chapter.Id,
-                Title = chapter.Title,
+                Title = title,
                 Order = chapter.Order,
                 Href = chapter.Href,
                 Cfi = chapter.Cfi,
                 ParentChapterId = chapter.ParentChapterId,
                 ChildChapters = new List<ChapterResponse>()
             };
+            
             chapterDict[chapter.Id] = chapterResponse;
         }
         
-        // Xây dựng cấu trúc cây
-        var rootChapters = new List<ChapterResponse>();
-        
+        // Second pass: Build hierarchy based on ParentChapterId
         foreach (var chapter in chapterList)
         {
             var chapterResponse = chapterDict[chapter.Id];
             
-            if (chapter.ParentChapterId.HasValue && chapterDict.ContainsKey(chapter.ParentChapterId.Value))
+            // Skip system files
+            if (IsSystemFile(chapter.Title))
             {
-                // Thêm vào parent
-                var parent = chapterDict[chapter.ParentChapterId.Value];
-                parent.ChildChapters?.Add(chapterResponse);
+                continue;
+            }
+            
+            if (chapter.ParentChapterId == null)
+            {
+                // Root level chapter (likely a Part)
+                rootChapters.Add(chapterResponse);
+            }
+            else if (chapterDict.ContainsKey(chapter.ParentChapterId.Value))
+            {
+                // Add to parent's children
+                var parentResponse = chapterDict[chapter.ParentChapterId.Value];
+                parentResponse.ChildChapters?.Add(chapterResponse);
             }
             else
             {
-                // Là root chapter
+                // Parent not found (shouldn't happen), add to root
                 rootChapters.Add(chapterResponse);
             }
         }
         
+        // Sort all levels by Order
+        rootChapters = rootChapters.OrderBy(c => c.Order).ToList();
+        foreach (var chapter in rootChapters)
+        {
+            if (chapter.ChildChapters != null)
+            {
+                chapter.ChildChapters = chapter.ChildChapters.OrderBy(c => c.Order).ToList();
+            }
+        }
+        
         return rootChapters;
+    }
+    
+    private bool IsSystemFile(string title)
+    {
+        return title.StartsWith("cover") ||
+               title.StartsWith("index") ||
+               title.StartsWith("toc") ||
+               title.StartsWith("bk01-toc") ||
+               title.StartsWith("pr01");
+    }
+    
+    private string CleanupChapterTitle(string rawTitle)
+    {
+        // Extract number from pt01 or ch01 format
+        var match = System.Text.RegularExpressions.Regex.Match(rawTitle, @"^(pt|ch)(\d+)$");
+        if (match.Success)
+        {
+            var prefix = match.Groups[1].Value;
+            var number = int.Parse(match.Groups[2].Value);
+            
+            return prefix == "pt" 
+                ? $"Part {number}" 
+                : $"Chapter {number}";
+        }
+        
+        // Handle subsections like ch14s01
+        match = System.Text.RegularExpressions.Regex.Match(rawTitle, @"^ch(\d+)s(\d+)$");
+        if (match.Success)
+        {
+            var chapter = int.Parse(match.Groups[1].Value);
+            var section = int.Parse(match.Groups[2].Value);
+            return $"Chapter {chapter} Section {section}";
+        }
+        
+        return rawTitle; // Fallback to original if no pattern matches
     }
 
     /// <summary>
@@ -559,4 +880,92 @@ public class BookBusinessLogic : IBookBusinessLogic
                 ErrorCode.InternalError);
         }
     }
-} 
+
+    /// <summary>
+    /// Get book chapters by book ID with role-based access control and subscription checks
+    /// </summary>
+    public async Task<Result<List<ChapterResponse>>> GetBookChaptersAsync(
+        Guid bookId,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ICurrentUserService? currentUserService = null)
+    {
+        try
+        {
+            // Check if book exists and get basic info
+            var book = await unitOfWork.BookRepository.GetByIdAsync(
+                bookId,
+                b => b.Chapters);
+
+            if (book == null)
+            {
+                return Result<List<ChapterResponse>>.Failure("Không tìm thấy sách", ErrorCode.NotFound);
+            }
+
+            // Determine user role and authentication status
+            bool isAuthenticated = currentUserService?.IsAuthenticated ?? false;
+            var userRoles = currentUserService?.Roles?.ToList() ?? new List<string>();
+            bool isAdminOrStaff = userRoles.Contains("Admin") || userRoles.Contains("Staff");
+            bool isUser = userRoles.Contains("User");
+            bool isGuest = !isAuthenticated;
+
+            // Status validation based on role (same as book detail)
+            if (!isAdminOrStaff)
+            {
+                // Guest and User can only access chapters of Active + Approved books
+                if (book.Status != EntityStatus.Active || book.ApprovalStatus != ApprovalStatus.Approved)
+                {
+                    return Result<List<ChapterResponse>>.Failure("Không tìm thấy sách hoặc sách không được phép xem", ErrorCode.NotFound);
+                }
+            }
+            // Admin/Staff can access chapters of all books regardless of status
+
+            // Handle chapters based on role and premium status
+            var chaptersToReturn = new List<Domain.Entities.Chapter>();
+
+            if (book.Chapters != null && book.Chapters.Any())
+            {
+                if (book.IsPremium && !isAdminOrStaff)
+                {
+                    // Premium book for non-admin/staff users
+                    bool hasFullAccess = false;
+
+                    if (isUser && currentUserService != null)
+                    {
+                        // Check subscription for authenticated users
+                        hasFullAccess = await CheckPremiumAccessAsync(currentUserService, unitOfWork);
+                    }
+                    // Guest users (isGuest = true) will have hasFullAccess = false
+
+                    if (hasFullAccess)
+                    {
+                        // User with active subscription - return all chapters
+                        chaptersToReturn = book.Chapters.ToList();
+                    }
+                    else
+                    {
+                        // Guest or User without subscription - limit to first 2 chapters
+                        chaptersToReturn = book.Chapters
+                            .OrderBy(c => c.Order)
+                            .Take(2)
+                            .ToList();
+                    }
+                }
+                else
+                {
+                    // Non-premium book OR Admin/Staff - return all chapters
+                    chaptersToReturn = book.Chapters.ToList();
+                }
+            }
+
+            // Map to response DTOs with hierarchy
+            var chapterResponses = MapChaptersToResponse(chaptersToReturn);
+
+            return Result<List<ChapterResponse>>.Success(chapterResponses);
+        }
+        catch (Exception)
+        {
+            return Result<List<ChapterResponse>>.Failure("Lỗi khi lấy danh sách chapters", ErrorCode.InternalError);
+        }
+    }
+}

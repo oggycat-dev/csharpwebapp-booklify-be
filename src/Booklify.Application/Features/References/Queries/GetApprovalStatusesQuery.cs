@@ -59,7 +59,7 @@ public class GetApprovalStatusesQueryHandler : IRequestHandler<GetApprovalStatus
             ApprovalStatus.Pending => "Chờ duyệt",
             ApprovalStatus.Approved => "Đã duyệt",
             ApprovalStatus.Rejected => "Từ chối",
-            ApprovalStatus.Published => "Đã xuất bản",
+
             _ => string.Empty
         };
     }

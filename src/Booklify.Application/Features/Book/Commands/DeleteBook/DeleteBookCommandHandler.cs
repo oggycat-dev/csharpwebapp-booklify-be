@@ -36,16 +36,23 @@ public class DeleteBookCommandHandler : IRequestHandler<DeleteBookCommand, Resul
     {
         try
         {
-            // 1. Validate user
+            // 1. Validate user and check Admin role
             var userValidationResult = await _bookBusinessLogic.ValidateUserAndGetStaffAsync(_currentUserService, _unitOfWork);
             if (!userValidationResult.IsSuccess)
             {
                 return Result.Failure(userValidationResult.Message, userValidationResult.ErrorCode ?? ErrorCode.Unauthorized);
             }
 
+            var staff = userValidationResult.Data!;
             var currentUserId = _currentUserService.UserId!;
 
-            // 2. Find existing book
+            // 2. Check if user is Admin (only Admin can delete books)
+            if (staff.Position != Domain.Enums.StaffPosition.Administrator)
+            {
+                return Result.Failure("Chỉ Admin mới có quyền xóa sách", ErrorCode.Forbidden);
+            }
+
+            // 3. Find existing book
             var existingBook = await _unitOfWork.BookRepository.GetByIdAsync(
                 command.BookId,
                 b => b.File,

@@ -1,8 +1,18 @@
 namespace Booklify.Domain.Enums;
 
+/// <summary>
+/// System-level status for technical operations
+/// Controls visibility and accessibility in the system
+/// </summary>
 public enum EntityStatus
 {
+    /// <summary>
+    /// Entity is active and available in the system
+    /// </summary>
     Active = 1,
-    Inactive = 0,
-    Pending = 2
+    
+    /// <summary>
+    /// Entity is temporarily disabled/hidden (maintenance, etc.)
+    /// </summary>
+    Inactive = 0
 }

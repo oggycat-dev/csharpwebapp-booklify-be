@@ -1,9 +1,9 @@
-namespace Booklify.Infrastructure.Models;
+namespace Booklify.Application.Common.DTOs.Book;
 
 /// <summary>
-/// Model for EPUB metadata extraction
+/// DTO for EPUB metadata extraction
 /// </summary>
-public class EpubMetadata
+public class EpubMetadataDto
 {
     public string Title { get; set; } = string.Empty;
     public string Author { get; set; } = string.Empty;
@@ -13,4 +13,4 @@ public class EpubMetadata
     public byte[]? CoverImageBytes { get; set; }
     public int TotalPages { get; set; }
     public DateTime? PublishedDate { get; set; }
-} 
+}

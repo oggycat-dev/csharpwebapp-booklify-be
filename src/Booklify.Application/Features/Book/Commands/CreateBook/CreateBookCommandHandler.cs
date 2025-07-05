@@ -80,45 +80,52 @@ public class CreateBookCommandHandler : IRequestHandler<CreateBookCommand, Resul
                     return Result<BookResponse>.Failure(fileResult.Message, fileResult.ErrorCode ?? ErrorCode.FileUploadFailed);
                 }
 
-                var fileInfo = fileResult.Data;
+                var fileInfo = fileResult.Data!;
 
-                // Create book entity
-                var bookResult = await _bookBusinessLogic.CreateBookEntityAsync(
-                    command.Request, staff, fileInfo, currentUserId, _mapper, _unitOfWork);
+                // Create book with complete EPUB processing workflow
+                var bookResult = await _bookBusinessLogic.CreateBookWithEpubProcessingAsync(
+                    command.Request, staff!, fileInfo, currentUserId, _mapper, _unitOfWork,
+                    _epubService, _storageService, _logger);
                     
                 if (!bookResult.IsSuccess)
                 {
                     return Result<BookResponse>.Failure(bookResult.Message, bookResult.ErrorCode ?? ErrorCode.InternalError);
                 }
 
-                var book = bookResult.Data;
-
-                // Check if file is EPUB BEFORE commit for background processing
-                var shouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(fileInfo.Extension);
+                var book = bookResult.Data!;
                 
                 // Commit transaction BEFORE background jobs
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-                // Queue EPUB processing AFTER successful commit
-                if (shouldProcessEpub)
+                
+                // Queue background job for EPUB chapter processing after successful transaction
+                if (_bookBusinessLogic.ShouldProcessEpub(fileInfo.Extension ?? string.Empty))
                 {
                     try
                     {
-                        _logger.LogInformation("Detected EPUB file for book {BookId} (extension: {Extension}), queueing background processing", 
-                            book.Id, fileInfo.Extension);
-                        var jobId = _epubService.ProcessEpubFile(book.Id, currentUserId);
-                        _logger.LogInformation("EPUB processing job queued with ID: {JobId} for book {BookId}", jobId, book.Id);
+                        _logger.LogInformation("Queuing EPUB chapter processing job for book {BookId}", book.Id);
+                        
+                        // Read file content for background processing
+                        var fileStream = await _storageService.DownloadFileAsync(fileInfo.FilePath!);
+                        if (fileStream != null)
+                        {
+                            using var memoryStream = new MemoryStream();
+                            await fileStream.CopyToAsync(memoryStream);
+                            var epubFileContent = memoryStream.ToArray();
+                            fileStream.Dispose();
+
+                            // Queue the background job with the file content using EPubService
+                            _epubService.ProcessEpubFileWithContent(book.Id, currentUserId, epubFileContent, fileInfo.Extension ?? ".epub");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not download file for background processing for book {BookId}", book.Id);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to queue EPUB processing for book: {BookId}", book.Id);
-                        // Background job failure doesn't affect main operation - book was created successfully
+                        _logger.LogError(ex, "Failed to queue EPUB processing job for book {BookId}", book.Id);
+                        // Don't fail the entire operation if background job queuing fails
                     }
-                }
-                else
-                {
-                    _logger.LogInformation("Book {BookId} is not EPUB (extension: {Extension}), skipping EPUB processing", 
-                        book.Id, fileInfo.Extension);
                 }
                 
                 // Create response

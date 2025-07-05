@@ -8,43 +8,6 @@ namespace Booklify.Application.Common.DTOs.Book;
 public class CreateBookRequest
 {
     /// <summary>
-    /// Tiêu đề sách
-    /// </summary>
-    [JsonPropertyName("title")]
-    [Required(ErrorMessage = "Tiêu đề sách là bắt buộc")]
-    [StringLength(500, ErrorMessage = "Tiêu đề sách không được vượt quá 500 ký tự")]
-    public string Title { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Mô tả sách
-    /// </summary>
-    [JsonPropertyName("description")]
-    [StringLength(2000, ErrorMessage = "Mô tả sách không được vượt quá 2000 ký tự")]
-    public string Description { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Tác giả sách
-    /// </summary>
-    [JsonPropertyName("author")]
-    [Required(ErrorMessage = "Tác giả là bắt buộc")]
-    [StringLength(200, ErrorMessage = "Tên tác giả không được vượt quá 200 ký tự")]
-    public string Author { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Mã ISBN của sách
-    /// </summary>
-    [JsonPropertyName("isbn")]
-    [StringLength(20, ErrorMessage = "Mã ISBN không được vượt quá 20 ký tự")]
-    public string ISBN { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Nhà xuất bản
-    /// </summary>
-    [JsonPropertyName("publisher")]
-    [StringLength(200, ErrorMessage = "Tên nhà xuất bản không được vượt quá 200 ký tự")]
-    public string Publisher { get; set; } = string.Empty;
-
-    /// <summary>
     /// ID danh mục sách
     /// </summary>
     [JsonPropertyName("category_id")]
@@ -65,13 +28,14 @@ public class CreateBookRequest
     public string? Tags { get; set; }
 
     /// <summary>
-    /// Ngày xuất bản
+    /// ISBN sách (tùy chọn)
     /// </summary>
-    [JsonPropertyName("published_date")]
-    public DateTime? PublishedDate { get; set; }
+    [JsonPropertyName("isbn")]
+    [StringLength(20, ErrorMessage = "ISBN không được vượt quá 20 ký tự")]
+    public string? Isbn { get; set; }
 
     /// <summary>
-    /// File sách (PDF, EPUB, DOCX, TXT)
+    /// File sách (EPUB)
     /// </summary>
     [JsonPropertyName("file")]
     [Required(ErrorMessage = "File sách là bắt buộc")]

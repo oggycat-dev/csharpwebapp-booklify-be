@@ -6,6 +6,12 @@ namespace Booklify.Application.Common.DTOs.Book;
 public class ManageBookStatusRequest
 {
     /// <summary>
+    /// Trạng thái sách (0: Inactive, 1: Active)
+    /// </summary>
+    [JsonPropertyName("status")]
+    public EntityStatus? Status { get; set; }
+
+    /// <summary>
     /// Trạng thái phê duyệt sách (0: Pending, 1: Approved, 2: Rejected)
     /// </summary>
     [JsonPropertyName("approval_status")]
