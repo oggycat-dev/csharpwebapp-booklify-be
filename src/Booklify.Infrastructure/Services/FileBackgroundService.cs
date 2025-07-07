@@ -303,6 +303,27 @@ public class FileBackgroundService : IFileBackgroundService
     }
 
     /// <summary>
+    /// Queue an EPUB processing job with pre-downloaded content
+    /// </summary>
+    public string QueueEpubProcessingWithContent(Guid bookId, string userId, byte[] fileContent, string fileExtension)
+    {
+        try
+        {
+            var jobId = _backgroundJobClient.Enqueue<EpubProcessingJob>(
+                job => job.ExecuteAsync(bookId, userId, fileContent, fileExtension));
+
+            _logger.LogInformation("Queued EPUB processing with content job {JobId} for book {BookId}", 
+                jobId, bookId);
+            return jobId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to queue EPUB processing with content job for book {BookId}", bookId);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Queue a chapter deletion job by book ID
     /// </summary>
     public string QueueChapterDeletionByBookId(Guid bookId, string userId = "")

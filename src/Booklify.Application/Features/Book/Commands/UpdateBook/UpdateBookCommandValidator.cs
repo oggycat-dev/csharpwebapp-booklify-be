@@ -40,9 +40,6 @@ public class UpdateBookCommandValidator : AbstractValidator<UpdateBookCommand>
             .NotEmpty().WithMessage("ID danh mục sách không hợp lệ")
             .When(x => x.Request.CategoryId.HasValue);
 
-
-        RuleFor(x => x.Request.Status)
-            .IsInEnum().WithMessage("Trạng thái sách không hợp lệ")
-            .When(x => x.Request.Status.HasValue);
+        // Note: Status field has been moved to ManageBookStatusCommand for proper role separation
     }
 } 

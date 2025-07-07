@@ -57,6 +57,32 @@ public interface IBookBusinessLogic
         IUnitOfWork unitOfWork);
 
     /// <summary>
+    /// Create book with complete EPUB processing workflow
+    /// </summary>
+    Task<Result<Domain.Entities.Book>> CreateBookWithEpubProcessingAsync(
+        object bookRequest,
+        StaffProfile staff,
+        Domain.Entities.FileInfo fileInfo,
+        string userId,
+        IMapper mapper,
+        IUnitOfWork unitOfWork,
+        IEPubService epubService,
+        IStorageService storageService,
+        Microsoft.Extensions.Logging.ILogger logger);
+
+    /// <summary>
+    /// Update book with complete EPUB processing workflow (for new file uploads)
+    /// </summary>
+    Task<Result<Domain.Entities.Book>> UpdateBookWithEpubProcessingAsync(
+        Domain.Entities.Book existingBook,
+        Domain.Entities.FileInfo newFileInfo,
+        string userId,
+        IUnitOfWork unitOfWork,
+        IEPubService epubService,
+        IStorageService storageService,
+        Microsoft.Extensions.Logging.ILogger logger);
+
+    /// <summary>
     /// Check if file is EPUB and should be processed
     /// </summary>
     bool ShouldProcessEpub(string fileExtension);
@@ -89,10 +115,12 @@ public interface IBookBusinessLogic
         IMapper mapper,
         IFileService fileService);
 
+    
+
     /// <summary>
-    /// Get book by ID with role-based access control and status validation
+    /// Get book detail by ID without chapters (lighter response)
     /// </summary>
-    Task<Result<BookResponse>> GetBookByIdAsync(
+    Task<Result<BookDetailResponse>> GetBookDetailByIdAsync(
         Guid bookId,
         IUnitOfWork unitOfWork,
         IMapper mapper,
@@ -107,6 +135,15 @@ public interface IBookBusinessLogic
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IFileService fileService);
+
+    /// <summary>
+    /// Get book chapters by book ID with role-based access control and subscription checks
+    /// </summary>
+    Task<Result<List<ChapterResponse>>> GetBookChaptersAsync(
+        Guid bookId,
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ICurrentUserService? currentUserService = null);
 }
 
 /// <summary>
@@ -119,4 +156,4 @@ public class BookUpdateJobData
     public string? FilePathToDelete { get; set; }
     public Guid? FileIdToDelete { get; set; }
     public bool ShouldProcessEpub { get; set; }
-} 
+}

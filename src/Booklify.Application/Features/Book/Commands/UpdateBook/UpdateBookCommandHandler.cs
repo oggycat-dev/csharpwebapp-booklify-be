@@ -135,7 +135,7 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     hasChanges = true;
                 }
 
-                // Update enum fields
+                // Update enum fields - only Admin can change status
                 if (request.CategoryId.HasValue && request.CategoryId != existingBook.CategoryId)
                 {
                     // Validate category exists
@@ -148,17 +148,8 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     hasChanges = true;
                 }
 
-                if (request.Status.HasValue && request.Status != existingBook.Status)
-                {
-                    existingBook.Status = request.Status.Value;
-                    hasChanges = true;
-                }
+                // Note: Book status changes are now handled by ManageBookStatusCommand for proper role separation
 
-                if (request.IsPremium.HasValue && request.IsPremium != existingBook.IsPremium)
-                {
-                    existingBook.IsPremium = request.IsPremium.Value;
-                    hasChanges = true;
-                }
 
                 if (request.PublishedDate != existingBook.PublishedDate)
                 {
@@ -166,7 +157,7 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     hasChanges = true;
                 }
 
-                // Handle file update
+                // Handle file update with EPUB processing
                 Domain.Entities.FileInfo? newFileInfo = null;
                 if (hasNewFile)
                 {
@@ -178,8 +169,30 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     }
 
                     newFileInfo = fileResult.Data!;
-                    existingBook.FilePath = newFileInfo.FilePath;
-                    existingBook.File = newFileInfo;
+                    
+                    // Use new EPUB processing workflow if file is EPUB
+                    var shouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(newFileInfo.Extension ?? string.Empty);
+                    if (shouldProcessEpub)
+                    {
+                        // For EPUB files, extract metadata and apply to book
+                        var epubResult = await _bookBusinessLogic.UpdateBookWithEpubProcessingAsync(
+                            existingBook, newFileInfo, currentUserId, _unitOfWork, 
+                            _epubService, _storageService, _logger);
+                        
+                        if (!epubResult.IsSuccess)
+                        {
+                            return Result<BookResponse>.Failure(epubResult.Message, epubResult.ErrorCode ?? ErrorCode.InternalError);
+                        }
+                        
+                        _logger.LogInformation("EPUB metadata extracted and applied for book {BookId} during update", existingBook.Id);
+                    }
+                    else
+                    {
+                        // For non-EPUB files, just update file info
+                        existingBook.FilePath = newFileInfo.FilePath;
+                        existingBook.File = newFileInfo;
+                    }
+                    
                     hasChanges = true;
 
                     // Check if should process EPUB - only set when there's a new file
@@ -197,7 +210,7 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
 
                 // Save changes
                 await _unitOfWork.BookRepository.UpdateAsync(existingBook);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+    
 
                 // Commit transaction BEFORE background jobs
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);

@@ -17,8 +17,8 @@ public class ManageBookStatusCommandValidator : AbstractValidator<ManageBookStat
 
         // Validate that at least one field is provided
         RuleFor(x => x.Request)
-            .Must(request => request.ApprovalStatus.HasValue || request.IsPremium.HasValue)
-            .WithMessage("Phải cung cấp ít nhất một trong các trường: trạng thái phê duyệt hoặc trạng thái premium");
+            .Must(request => request.Status.HasValue || request.ApprovalStatus.HasValue || request.IsPremium.HasValue)
+            .WithMessage("Phải cung cấp ít nhất một trong các trường: trạng thái sách, trạng thái phê duyệt hoặc trạng thái premium");
 
         // Validate approval note is required when rejecting
         RuleFor(x => x.Request.ApprovalNote)

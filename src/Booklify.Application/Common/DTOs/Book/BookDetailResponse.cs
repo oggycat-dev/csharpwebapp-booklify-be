@@ -3,7 +3,7 @@ using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Common.DTOs.Book;
 
-public class BookResponse : BookListItemResponse
+public class BookDetailResponse : BookListItemResponse
 {
     [JsonPropertyName("isbn")]
     public string ISBN { get; set; } = string.Empty;
@@ -33,4 +33,4 @@ public class BookResponse : BookListItemResponse
 
     [JsonPropertyName("tags")]
     public string? Tags { get; set; }
-} 
+}

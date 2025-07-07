@@ -55,6 +55,11 @@ public interface IFileBackgroundService
     string QueueEpubProcessing(Guid bookId, string userId = "");
 
     /// <summary>
+    /// Queue an EPUB processing job with pre-downloaded content
+    /// </summary>
+    string QueueEpubProcessingWithContent(Guid bookId, string userId, byte[] fileContent, string fileExtension);
+
+    /// <summary>
     /// Queue a chapter deletion job by book ID
     /// </summary>
     string QueueChapterDeletionByBookId(Guid bookId, string userId = "");

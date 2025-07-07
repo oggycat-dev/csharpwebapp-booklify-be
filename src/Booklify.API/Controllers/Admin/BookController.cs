@@ -10,11 +10,12 @@ using Booklify.Application.Features.Book.Commands.UpdateBook;
 using Booklify.Application.Features.Book.Commands.DeleteBook;
 using Booklify.Application.Features.Book.Commands.ManageBookStatus;
 using Booklify.Application.Features.Book.Queries.GetBooks;
-using Booklify.Application.Features.Book.Queries.GetBookById;
 using Booklify.Application.Features.Book.Queries.DownloadBook;
 using Booklify.Domain.Enums;
 using Booklify.API.Attributes;
 using Swashbuckle.AspNetCore.Annotations;
+using Booklify.Application.Features.Book.Queries.GetBookDetail;
+using Booklify.Application.Features.Book.Queries.GetBookChapters;
 
 namespace Booklify.API.Controllers.Admin;
 
@@ -139,49 +140,50 @@ public class BookController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo sách mới
+    /// Tạo sách mới từ file EPUB
     /// </summary>
     /// <remarks>
-    /// API tạo sách mới với upload file.
-    /// Hỗ trợ các định dạng file: PDF, EPUB, DOCX, TXT.
+    /// API này cho phép tạo sách mới từ file EPUB với auto-extraction metadata.
     /// 
-    /// Đối với file EPUB, hệ thống sẽ tự động:
-    /// - Trích xuất metadata (tác giả, tiêu đề, nhà xuất bản, ảnh bìa)
-    /// - Tạo chapters tự động dựa trên table of contents
-    /// - Upload ảnh bìa lên storage
+    /// **Định dạng hỗ trợ:**
+    /// - EPUB (.epub) only
     /// 
-    /// Form data request (multipart/form-data):
-    /// - file: File sách (bắt buộc) - định dạng: PDF, EPUB, DOCX, TXT
-    /// - title: Tiêu đề sách (bắt buộc)
-    /// - description: Mô tả sách (không bắt buộc)
-    /// - author: Tác giả (bắt buộc)
-    /// - isbn: Mã ISBN (không bắt buộc)
-    /// - publisher: Nhà xuất bản (không bắt buộc)
+    /// **Quy trình xử lý:**
+    /// 1. Upload file EPUB
+    /// 2. Validate file format và dữ liệu đầu vào
+    /// 3. Extract metadata (title, author, publisher, cover) từ EPUB
+    /// 4. Tạo record sách với metadata đã extract
+    /// 5. Upload file lên storage
+    /// 6. Background job xử lý chapters
+    /// 
+    /// **Quyền hạn:**
+    /// - Admin: Tự động được approved
+    /// - Staff: Cần phê duyệt từ Admin
+    /// 
+    /// **Form data request (multipart/form-data):**
+    /// - file: File EPUB (bắt buộc)
     /// - category_id: ID danh mục sách (bắt buộc) - định dạng: GUID
     /// - is_premium: Sách có phí hay không (không bắt buộc) - true/false
     /// - tags: Thẻ tag (không bắt buộc) - phân cách bằng dấu phẩy
-    /// - published_date: Ngày xuất bản (không bắt buộc) - định dạng: yyyy-MM-dd
     /// 
-    /// Giới hạn file:
+    /// **Giới hạn file:**
     /// - Kích thước tối đa: 50MB
-    /// - Định dạng được hỗ trợ: .pdf, .epub, .docx, .txt
+    /// - Định dạng: .epub only
     /// 
-    /// Lưu ý:
-    /// - Đối với EPUB: metadata sẽ được extract tự động trong background
-    /// - Approval status: Admin sẽ được auto-approve, Staff cần approval
+    /// **Lưu ý:**
+    /// - Metadata (title, author, publisher, etc.) sẽ được extract tự động từ EPUB
+    /// - Để chỉnh sửa metadata sau khi tạo, sử dụng API Update Book
+    /// - Background job chỉ xử lý chapters, không xử lý metadata
+    /// - Cover image sẽ được extract và upload tự động
     /// </remarks>
-    /// <param name="title">Tiêu đề sách</param>
-    /// <param name="description">Mô tả sách</param>
-    /// <param name="author">Tác giả</param>
-    /// <param name="isbn">Mã ISBN</param>
-    /// <param name="publisher">Nhà xuất bản</param>
-    /// <param name="categoryId">ID danh mục sách</param>
+    /// <param name="categoryId">ID danh mục sách (bắt buộc)</param>
     /// <param name="isPremium">Sách có phí hay không</param>
     /// <param name="tags">Thẻ tag (phân cách bằng dấu phẩy)</param>
-    /// <param name="publishedDate">Ngày xuất bản</param>
-    /// <returns>Thông tin sách đã tạo</returns>
+    /// <param name="isbn">Mã ISBN (tùy chọn)</param>
+    /// <param name="file">File EPUB (bắt buộc)</param>
+    /// <returns>Thông tin sách đã tạo với metadata đã extract</returns>
     /// <response code="200">Tạo sách thành công</response>
-    /// <response code="400">Dữ liệu không hợp lệ hoặc file không được hỗ trợ</response>
+    /// <response code="400">Dữ liệu không hợp lệ hoặc file không phải EPUB</response>
     /// <response code="401">Không có quyền truy cập</response>
     /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin hoặc Staff)</response>
     /// <response code="404">Danh mục sách không tồn tại</response>
@@ -192,58 +194,37 @@ public class BookController : ControllerBase
     [ProducesResponseType(typeof(Result), 403)]
     [ProducesResponseType(typeof(Result), 404)]
     [SwaggerOperation(
-        Summary = "Tạo sách mới",
-        Description = "API tạo sách mới với upload file. Hỗ trợ auto-extract cho EPUB.",
+        Summary = "Tạo sách mới từ EPUB",
+        Description = "API tạo sách mới từ file EPUB với auto-extraction metadata.",
         OperationId = "Admin_CreateBook",
         Tags = new[] { "Admin", "Admin_Book" }
     )]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateBook(
-        [FromForm(Name = "title")] string title,
-        [FromForm(Name = "description")] string description = "",
-        [FromForm(Name = "author")] string author = "",
-        [FromForm(Name = "isbn")] string isbn = "",
-        [FromForm(Name = "publisher")] string publisher = "",
-        [FromForm(Name = "category_id")] Guid categoryId = default,
+        [FromForm(Name = "category_id")] Guid categoryId,
         [FromForm(Name = "is_premium")] bool isPremium = false,
         [FromForm(Name = "tags")] string? tags = null,
-        [FromForm(Name = "published_date")] DateTime? publishedDate = null)
+        [FromForm(Name = "isbn")] string? isbn = null,
+        [FromForm(Name = "file")] IFormFile file = null!)
     {
         // Validate required fields
-        // if (string.IsNullOrWhiteSpace(title))
-        // {
-        //     return BadRequest(Result.Failure("Tiêu đề sách là bắt buộc"));
-        // }
+        if (categoryId == Guid.Empty)
+        {
+            return BadRequest(Result.Failure("ID danh mục sách là bắt buộc"));
+        }
 
-        // if (string.IsNullOrWhiteSpace(author))
-        // {
-        //     return BadRequest(Result.Failure("Tác giả là bắt buộc"));
-        // }
-
-        // if (categoryId == Guid.Empty)
-        // {
-        //     return BadRequest(Result.Failure("ID danh mục sách là bắt buộc"));
-        // }
-
-        // Get the file from form
-        var file = Request.Form.Files.GetFile("file");
         if (file == null)
         {
-            return BadRequest(Result.Failure("File sách là bắt buộc"));
+            return BadRequest(Result.Failure("File EPUB là bắt buộc"));
         }
 
         // Create the request object
         var request = new CreateBookRequest
         {
-            Title = title,
-            Description = description,
-            Author = author,
-            ISBN = isbn,
-            Publisher = publisher,
             CategoryId = categoryId,
             IsPremium = isPremium,
             Tags = tags,
-            PublishedDate = publishedDate,
+            Isbn = isbn,
             File = file
         };
 
@@ -278,7 +259,7 @@ public class BookController : ControllerBase
     )]
     public async Task<IActionResult> GetBookById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetBookByIdQuery(id));
+        var result = await _mediator.Send(new GetBookDetailQuery(id));
         if (!result.IsSuccess)
         {
             return StatusCode(result.GetHttpStatusCode(), result);
@@ -312,6 +293,14 @@ public class BookController : ControllerBase
     /// - Trạng thái phê duyệt chỉ Admin mới có quyền thay đổi qua API riêng.
     /// </remarks>
     /// <param name="id">ID của sách cần cập nhật</param>
+    /// <param name="title">Tiêu đề sách (không bắt buộc)</param>
+    /// <param name="description">Mô tả sách (không bắt buộc)</param>
+    /// <param name="author">Tác giả (không bắt buộc)</param>
+    /// <param name="isbn">Mã ISBN (không bắt buộc)</param>
+    /// <param name="publisher">Nhà xuất bản (không bắt buộc)</param>
+    /// <param name="categoryId">ID danh mục sách (không bắt buộc)</param>
+    /// <param name="tags">Thẻ tag (không bắt buộc)</param>
+    /// <param name="publishedDate">Ngày xuất bản (không bắt buộc)</param>
     /// <returns>Thông tin sách đã cập nhật</returns>
     /// <response code="200">Cập nhật thành công</response>
     /// <response code="400">Dữ liệu không hợp lệ hoặc không có thay đổi</response>
@@ -334,15 +323,13 @@ public class BookController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateBook(
         [FromRoute] Guid id,
-        [FromForm(Name = "title")] string title = null,
-        [FromForm(Name = "description")] string description = null,
-        [FromForm(Name = "author")] string author = null,
-        [FromForm(Name = "isbn")] string isbn = null,
-        [FromForm(Name = "publisher")] string publisher = null,
+        [FromForm(Name = "title")] string? title = null,
+        [FromForm(Name = "description")] string? description = null,
+        [FromForm(Name = "author")] string? author = null,
+        [FromForm(Name = "isbn")] string? isbn = null,
+        [FromForm(Name = "publisher")] string? publisher = null,
         [FromForm(Name = "category_id")] Guid? categoryId = null,
-        [FromForm(Name = "status")] int? status = null,
-        [FromForm(Name = "is_premium")] bool? isPremium = null,
-        [FromForm(Name = "tags")] string tags = null,
+        [FromForm(Name = "tags")] string? tags = null,
         [FromForm(Name = "published_date")] DateTime? publishedDate = null)
     {
         var request = new UpdateBookRequest
@@ -353,8 +340,6 @@ public class BookController : ControllerBase
             ISBN = isbn,
             Publisher = publisher,
             CategoryId = categoryId,
-            Status = status.HasValue ? (EntityStatus)status.Value : null,
-            IsPremium = isPremium,
             Tags = tags,
             PublishedDate = publishedDate,
         };
@@ -377,22 +362,46 @@ public class BookController : ControllerBase
     }
 
     /// <summary>
-    /// Xóa sách (Soft Delete)
+    /// Xóa sách (chỉ Admin)
     /// </summary>
+    /// <remarks>
+    /// API này cho phép xóa sách (soft delete). Chỉ Admin mới có quyền xóa sách.
+    /// 
+    /// **Quy trình xóa:**
+    /// 1. Kiểm tra quyền Admin
+    /// 2. Kiểm tra sách có tồn tại không
+    /// 3. Thực hiện soft delete sách
+    /// 4. Background jobs sẽ xóa:
+    ///    - Chapters của sách
+    ///    - File và cover image
+    ///    - Các dữ liệu liên quan
+    /// 
+    /// **Quyền hạn:**
+    /// - Chỉ Admin mới có quyền xóa sách
+    /// - Staff không thể xóa sách
+    /// 
+    /// **Lưu ý:**
+    /// - Đây là soft delete, dữ liệu không bị xóa hoàn toàn
+    /// - Background jobs sẽ dọn dẹp file và chapters
+    /// - Không thể khôi phục sau khi xóa (cần Admin can thiệp database)
+    /// </remarks>
     /// <param name="id">ID của sách cần xóa</param>
     /// <returns>Kết quả xóa sách</returns>
     /// <response code="200">Xóa sách thành công</response>
+    /// <response code="400">Dữ liệu không hợp lệ</response>
     /// <response code="401">Không có quyền truy cập</response>
-    /// <response code="403">Không đủ quyền hạn</response>
+    /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
     /// <response code="404">Không tìm thấy sách</response>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")] // Chỉ Admin mới được xóa sách
     [ProducesResponseType(typeof(Result), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
     [ProducesResponseType(typeof(Result), 401)]
     [ProducesResponseType(typeof(Result), 403)]
     [ProducesResponseType(typeof(Result), 404)]
     [SwaggerOperation(
-        Summary = "Xóa sách",
-        Description = "Soft delete sách. File và chapters liên quan sẽ được xóa trong background.",
+        Summary = "Xóa sách (chỉ Admin)",
+        Description = "API xóa sách với quyền Admin. Sẽ thực hiện soft delete và background cleanup.",
         OperationId = "Admin_DeleteBook",
         Tags = new[] { "Admin", "Admin_Book" }
     )]
@@ -418,11 +427,13 @@ public class BookController : ControllerBase
     ///     {
     ///        "approval_status": 1,
     ///        "approval_note": "Sách đã được phê duyệt",
+    ///        "status": 1,
     ///        "is_premium": true
     ///     }
     ///     
     /// Các trường có thể cập nhật:
     /// - approval_status: Trạng thái phê duyệt (0: Pending, 1: Approved, 2: Rejected)
+    /// - status: Trạng thái sách (0: Active, 1: Inactive)
     /// - approval_note: Ghi chú phê duyệt (bắt buộc khi từ chối - status = 2)
     /// - is_premium: Sách có phí hay không (true/false)
     ///     
@@ -497,10 +508,51 @@ public class BookController : ControllerBase
             
         var downloadData = result.Data;
         
+        if (downloadData?.FileContent == null)
+            return NotFound(Result.Failure("Không tìm thấy file sách"));
+        
         // Return file với proper headers
         return File(
             downloadData.FileContent,
             downloadData.ContentType,
             downloadData.FileName);
     }
-} 
+
+    /// <summary>
+    /// Lấy danh sách chapters của sách (dành cho admin)
+    /// </summary>
+    /// <remarks>
+    /// API này trả về danh sách chapters của sách dành cho admin:
+    /// 
+    /// - Admin có thể xem tất cả chapters của mọi sách (kể cả chưa được duyệt)
+    /// - Không có giới hạn về subscription như user
+    /// - Trả về đầy đủ thông tin chapters để admin có thể quản lý
+    /// </remarks>
+    /// <param name="id">ID của sách</param>
+    /// <returns>Danh sách chapters của sách</returns>
+    /// <response code="200">Lấy danh sách chapters thành công</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn</response>
+    /// <response code="404">Không tìm thấy sách</response>
+    [HttpGet("{id}/chapters")]
+    [ProducesResponseType(typeof(Result<List<ChapterResponse>>), 200)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Lấy danh sách chapters của sách (dành cho admin)",
+        Description = "Lấy danh sách chapters của sách với quyền admin (không có giới hạn subscription)",
+        OperationId = "Admin_GetBookChapters",
+        Tags = new[] { "Admin", "Admin_Book" }
+    )]
+    public async Task<IActionResult> GetBookChapters([FromRoute] Guid id)
+    {
+        var query = new GetBookChaptersQuery(id);
+        var result = await _mediator.Send(query);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+}

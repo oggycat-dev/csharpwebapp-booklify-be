@@ -4,7 +4,8 @@ using Booklify.API.Configurations;
 using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.Book;
 using Booklify.Application.Features.Book.Queries.GetBooks;
-using Booklify.Application.Features.Book.Queries.GetBookById;
+using Booklify.Application.Features.Book.Queries.GetBookDetail;
+using Booklify.Application.Features.Book.Queries.GetBookChapters;
 using Booklify.Application.Features.Book.Queries.DownloadBook;
 using Booklify.Application.Features.Book.Commands.IncrementBookViews;
 using Booklify.Domain.Enums;
@@ -119,13 +120,52 @@ public class BookController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy thông tin chi tiết của một cuốn sách
+    /// Lấy thông tin chi tiết của một cuốn sách (không bao gồm chapters)
     /// </summary>
     /// <remarks>
-    /// API này kiểm tra quyền truy cập cho sách premium:
+    /// API này trả về thông tin chi tiết sách nhưng không bao gồm chapters:
     /// 
     /// - Chỉ hiển thị sách đã được duyệt (Approved) và đang hoạt động (Active)
-    /// - Sách thường: Trả về đầy đủ thông tin và chapters
+    /// - Thông tin chi tiết sách nhưng không có chapters để tối ưu performance
+    /// - Sử dụng API riêng biệt để lấy chapters: GET /api/books/{id}/chapters
+    /// 
+    /// Subscription được kiểm tra riêng tại endpoint chapters:
+    /// - Subscription đang active (IsActive = true)
+    /// - Trong thời gian hiệu lực (StartDate &lt;= now &lt;= EndDate)
+    /// - Trạng thái subscription = Active
+    /// </remarks>
+    /// <param name="id">ID của sách</param>
+    /// <returns>Thông tin chi tiết của sách (không bao gồm chapters)</returns>
+    /// <response code="200">Lấy thông tin sách thành công</response>
+    /// <response code="404">Không tìm thấy sách hoặc sách không được phép xem</response>
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(Result<BookDetailResponse>), 200)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Lấy thông tin chi tiết sách (không bao gồm chapters)",
+        Description = "Lấy thông tin chi tiết của một cuốn sách theo ID, không bao gồm chapters để tối ưu performance",
+        OperationId = "User_GetBookDetail",
+        Tags = new[] { "User", "User_Book" }
+    )]
+    public async Task<IActionResult> GetBookDetail(Guid id)
+    {
+        var query = new GetBookDetailQuery(id);
+        var result = await _mediator.Send(query);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Lấy danh sách chapters của sách với kiểm tra subscription
+    /// </summary>
+    /// <remarks>
+    /// API này trả về danh sách chapters của sách với kiểm tra quyền truy cập:
+    /// 
+    /// - Chỉ hiển thị chapters của sách đã được duyệt (Approved) và đang hoạt động (Active)
+    /// - Sách thường: Trả về tất cả chapters
     /// - Sách premium:
     ///   + Guest/User không có subscription: Chỉ 2 chapters đầu tiên
     ///   + User có subscription active: Đầy đủ chapters
@@ -133,25 +173,25 @@ public class BookController : ControllerBase
     /// 
     /// Subscription được kiểm tra dựa trên:
     /// - Subscription đang active (IsActive = true)
-    /// - Trong thời gian hiệu lực (StartDate <= now <= EndDate)
+    /// - Trong thời gian hiệu lực (StartDate &lt;= now &lt;= EndDate)
     /// - Trạng thái subscription = Active
     /// </remarks>
     /// <param name="id">ID của sách</param>
-    /// <returns>Thông tin chi tiết của sách với kiểm tra quyền truy cập</returns>
-    /// <response code="200">Lấy thông tin sách thành công</response>
+    /// <returns>Danh sách chapters với kiểm tra quyền truy cập</returns>
+    /// <response code="200">Lấy danh sách chapters thành công</response>
     /// <response code="404">Không tìm thấy sách hoặc sách không được phép xem</response>
-    [HttpGet("{id}")]
-    [ProducesResponseType(typeof(Result<BookResponse>), 200)]
+    [HttpGet("{id}/chapters")]
+    [ProducesResponseType(typeof(Result<List<ChapterResponse>>), 200)]
     [ProducesResponseType(typeof(Result), 404)]
     [SwaggerOperation(
-        Summary = "Lấy thông tin chi tiết sách với kiểm tra subscription",
-        Description = "Lấy thông tin chi tiết của một cuốn sách theo ID với kiểm tra quyền truy cập premium content",
-        OperationId = "User_GetBookById",
+        Summary = "Lấy danh sách chapters của sách với kiểm tra subscription",
+        Description = "Lấy danh sách chapters với kiểm tra quyền truy cập premium content",
+        OperationId = "User_GetBookChapters",
         Tags = new[] { "User", "User_Book" }
     )]
-    public async Task<IActionResult> GetBookById(Guid id)
+    public async Task<IActionResult> GetBookChapters(Guid id)
     {
-        var query = new GetBookByIdQuery(id);
+        var query = new GetBookChaptersQuery(id);
         var result = await _mediator.Send(query);
         
         if (!result.IsSuccess)
