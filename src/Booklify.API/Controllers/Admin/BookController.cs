@@ -204,15 +204,10 @@ public class BookController : ControllerBase
         [FromForm(Name = "category_id")] Guid categoryId,
         [FromForm(Name = "is_premium")] bool isPremium = false,
         [FromForm(Name = "tags")] string? tags = null,
-        [FromForm(Name = "isbn")] string? isbn = null,
-        [FromForm(Name = "file")] IFormFile file = null!)
+        [FromForm(Name = "isbn")] string? isbn = null)
     {
-        // Validate required fields
-        if (categoryId == Guid.Empty)
-        {
-            return BadRequest(Result.Failure("ID danh mục sách là bắt buộc"));
-        }
-
+        var file = Request.Form.Files.GetFile("file");
+        
         if (file == null)
         {
             return BadRequest(Result.Failure("File EPUB là bắt buộc"));
@@ -348,7 +343,7 @@ public class BookController : ControllerBase
         var file = Request.Form.Files.GetFile("file");
         
         if (file != null)
-    {
+        {
             request.File = file;
         }
         
