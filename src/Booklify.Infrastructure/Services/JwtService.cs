@@ -63,10 +63,11 @@ public class JwtService : IJwtService
     /// <summary>
     /// Generate JWT token with expiration info for a user
     /// </summary>
-    public (string token, List<string> roles, int expiresInMinutes) GenerateJwtTokenWithExpiration(AppUser user, string? requestOrigin = null)
+    public (string token, List<string> roles, int expiresInMinutes, DateTime expiresAt) GenerateJwtTokenWithExpiration(AppUser user, string? requestOrigin = null)
     {
         var (token, roles) = GenerateJwtToken(user, requestOrigin);
-        return (token, roles, _jwtSettings.ExpiresInMinutes);
+        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiresInMinutes);
+        return (token, roles, _jwtSettings.ExpiresInMinutes, expiresAt);
     }
     
     /// <summary>
