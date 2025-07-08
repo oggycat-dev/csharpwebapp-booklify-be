@@ -20,8 +20,8 @@ public interface IJwtService
     /// </summary>
     /// <param name="user">User for which to generate the token</param>
     /// <param name="requestOrigin">Optional request origin for audience validation</param>
-    /// <returns>Token, roles, and expiration time in minutes tuple</returns>
-    (string token, List<string> roles, int expiresInMinutes) GenerateJwtTokenWithExpiration(AppUser user, string? requestOrigin = null);
+    /// <returns>Token, roles, expiration time in minutes, and expiration datetime tuple</returns>
+    (string token, List<string> roles, int expiresInMinutes, DateTime expiresAt) GenerateJwtTokenWithExpiration(AppUser user, string? requestOrigin = null);
     
     /// <summary>
     /// Get token expiration time in minutes

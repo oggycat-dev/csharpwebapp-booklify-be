@@ -56,7 +56,7 @@ public class ReAuthenticateQueryHandler : IRequestHandler<ReAuthenticateQuery, R
         }
 
         // Generate new tokens and get expiration info
-        var (accessToken, tokenRoles, expiresInMinutes) = _jwtService.GenerateJwtTokenWithExpiration(user);
+        var (accessToken, tokenRoles, expiresInMinutes, expiresAt) = _jwtService.GenerateJwtTokenWithExpiration(user);
         var refreshToken = await _identityService.GenerateRefreshTokenAsync(user);
 
         // Map user to response using AutoMapper
@@ -66,6 +66,7 @@ public class ReAuthenticateQueryHandler : IRequestHandler<ReAuthenticateQuery, R
         response.AppRole = tokenRoles;
         response.AccessToken = accessToken;
         response.TokenExpiresIn = expiresInMinutes;
+        response.TokenExpiresAt = expiresAt;
 
         return Result<AuthenticationResponse>.Success(response, "Refresh token success");
     }
