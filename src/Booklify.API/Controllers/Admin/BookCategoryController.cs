@@ -8,8 +8,10 @@ using Booklify.Application.Features.BookCategory.Commands.CreateBookCategory;
 using Booklify.Application.Features.BookCategory.Commands.UpdateBookCategory;
 using Booklify.Application.Features.BookCategory.Commands.DeleteBookCategory;
 using Booklify.Application.Features.BookCategory.Queries.GetBookCategories;
+using Booklify.Application.Features.BookCategory.Queries.GetBookCategoryById;
 using Booklify.Domain.Enums;
 using Swashbuckle.AspNetCore.Annotations;
+using Booklify.API.Attributes;
 
 namespace Booklify.API.Controllers.Admin;
 
@@ -88,6 +90,37 @@ public class BookCategoryController : ControllerBase
         }
         return Ok(result);
     }
+
+    /// <summary>
+    /// Lấy chi tiết danh mục sách theo ID
+    /// </summary>
+    /// <param name="id">ID của danh mục sách</param>
+    /// <returns>Thông tin chi tiết danh mục sách</returns>
+    /// <response code="200">Lấy thông tin thành công</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
+    /// <response code="404">Không tìm thấy danh mục sách</response>
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(Result<BookCategoryResponse>), 200)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Lấy chi tiết danh mục sách",
+        Description = "Lấy thông tin chi tiết của một danh mục sách theo ID",
+        OperationId = "Admin_GetBookCategoryById",
+        Tags = new[] { "Admin", "Admin_BookCategory" }
+    )]
+    public async Task<IActionResult> GetBookCategoryById(Guid id)
+    {
+        var query = new GetBookCategoryByIdQuery(id);
+        var result = await _mediator.Send(query);
+
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+
+        return Ok(result);
+    }
     
     /// <summary>
     /// Tạo danh mục sách mới
@@ -153,6 +186,7 @@ public class BookCategoryController : ControllerBase
     /// <response code="403">Không đủ quyền hạn (yêu cầu quyền Admin)</response>
     /// <response code="404">Không tìm thấy danh mục sách</response>
     [HttpPatch("{id}")]
+    [SkipModelValidation]
     [ProducesResponseType(typeof(Result<BookCategoryResponse>), 200)]
     [ProducesResponseType(typeof(Result), 400)]
     [ProducesResponseType(typeof(Result), 401)]

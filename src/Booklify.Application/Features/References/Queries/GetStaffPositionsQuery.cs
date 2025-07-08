@@ -59,12 +59,7 @@ public class GetStaffPositionsQueryHandler : IRequestHandler<GetStaffPositionsQu
             StaffPosition.Unknown => "Không xác định",
             StaffPosition.Administrator => "Quản trị hệ thống",
             StaffPosition.Staff => "Nhân viên quản lý nội dung",
-            StaffPosition.UserManager => "Quản lý tài khoản người dùng",
             StaffPosition.LibraryManager => "Quản lý thư viện",
-            StaffPosition.TechnicalSupport => "Hỗ trợ kỹ thuật",
-            StaffPosition.DataEntryClerk => "Nhân viên nhập liệu",
-            StaffPosition.CommunityModerator => "Quản lý cộng đồng",
-            StaffPosition.AIAssistantManager => "Quản lý AI/ML",
             _ => string.Empty
         };
     }

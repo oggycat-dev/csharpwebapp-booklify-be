@@ -60,17 +60,8 @@ public class DeleteBookCategoryCommandHandler : IRequestHandler<DeleteBookCatego
             await _unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
             // 3. Soft delete - set status to inactive and update modified fields
-            existingCategory.Status = EntityStatus.Inactive;
-            existingCategory.ModifiedAt = DateTime.UtcNow;
-            
-            var currentUserId = _currentUserService.UserId;
-            if (!string.IsNullOrEmpty(currentUserId) && Guid.TryParse(currentUserId, out var userGuid))
-            {
-                existingCategory.ModifiedBy = userGuid;
-            }
 
-            // 4. Save changes
-            await _unitOfWork.BookCategoryRepository.UpdateAsync(existingCategory);
+            await _unitOfWork.BookCategoryRepository.SoftDeleteAsync(existingCategory, _currentUserService.UserId);
             
             // Commit transaction
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

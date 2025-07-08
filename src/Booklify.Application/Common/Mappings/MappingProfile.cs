@@ -375,12 +375,7 @@ public class MappingProfile : Profile
         {
             StaffPosition.Administrator => "Administrator",
             StaffPosition.Staff => "Staff",
-            StaffPosition.UserManager => "User Manager",
             StaffPosition.LibraryManager => "Library Manager",
-            StaffPosition.TechnicalSupport => "Technical Support",
-            StaffPosition.DataEntryClerk => "Data Entry Clerk",
-            StaffPosition.CommunityModerator => "Community Moderator",
-            StaffPosition.AIAssistantManager => "AI Assistant Manager",
             _ => "Unknown"
         };
     }

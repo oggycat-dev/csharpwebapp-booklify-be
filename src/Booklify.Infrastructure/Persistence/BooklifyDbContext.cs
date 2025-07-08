@@ -52,6 +52,43 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
     public DbSet<AppUser> IdentityUsers { get; set; }
     public DbSet<AppRole> IdentityRoles { get; set; }
 
+    /// <summary>
+    /// Override SaveChangesAsync to prevent AppUser entities from being saved by Booklify context
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        // Detach any AppUser or AppRole entities to prevent FK violations
+        // Since they are managed by Identity context, not Booklify context
+        var identityEntries = ChangeTracker.Entries()
+            .Where(e => e.Entity is AppUser || e.Entity is AppRole)
+            .ToList();
+
+        foreach (var entry in identityEntries)
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Override SaveChanges to prevent AppUser entities from being saved by Booklify context
+    /// </summary>
+    public override int SaveChanges()
+    {
+        // Detach any AppUser or AppRole entities to prevent FK violations
+        var identityEntries = ChangeTracker.Entries()
+            .Where(e => e.Entity is AppUser || e.Entity is AppRole)
+            .ToList();
+
+        foreach (var entry in identityEntries)
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        return base.SaveChanges();
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
