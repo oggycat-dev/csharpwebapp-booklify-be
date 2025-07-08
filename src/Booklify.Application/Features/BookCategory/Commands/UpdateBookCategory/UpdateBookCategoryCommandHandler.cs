@@ -38,9 +38,11 @@ public class UpdateBookCategoryCommandHandler : IRequestHandler<UpdateBookCatego
                 ErrorCode.Unauthorized);
         }
 
-        // 1. Find existing book category
+        // 1. Find existing book category with books for business rule validation
         var existingCategory = await _unitOfWork.BookCategoryRepository
-            .GetFirstOrDefaultAsync(x => x.Id == command.CategoryId);
+            .GetFirstOrDefaultAsync(
+                x => x.Id == command.CategoryId,
+                x => x.Books);
 
         if (existingCategory == null)
         {
@@ -86,6 +88,15 @@ public class UpdateBookCategoryCommandHandler : IRequestHandler<UpdateBookCatego
                 var newStatus = request.IsActive.Value ? EntityStatus.Active : EntityStatus.Inactive;
                 if (existingCategory.Status != newStatus)
                 {
+                    // Business rule: Cannot set category to inactive if it contains books
+                    if (newStatus == EntityStatus.Inactive && existingCategory.Books != null && existingCategory.Books.Any())
+                    {
+                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                        return Result<BookCategoryResponse>.Failure(
+                            "Cannot set book category to inactive while it contains books. Please move or delete all books in this category first.",
+                            ErrorCode.BusinessRuleViolation);
+                    }
+
                     existingCategory.Status = newStatus;
                     hasChanges = true;
                 }
@@ -94,9 +105,8 @@ public class UpdateBookCategoryCommandHandler : IRequestHandler<UpdateBookCatego
             if (!hasChanges)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return Result<BookCategoryResponse>.Failure(
-                    "No changes detected",
-                    ErrorCode.ValidationFailed);
+                return Result<BookCategoryResponse>.Success(    
+                    _mapper.Map<BookCategoryResponse>(existingCategory));
             }
 
             // 3. Update modified date

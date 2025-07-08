@@ -34,8 +34,8 @@ public class StaffProfileRepository : GenericRepository<StaffProfile>, IStaffPro
     
     private Expression<Func<StaffProfile, bool>> BuildFilterPredicate(StaffFilterModel filter)
     {
-        // Start with always true condition
-        Expression<Func<StaffProfile, bool>> predicate = s => true;
+        // Start with filtering out Administrator position (position = 1)
+        Expression<Func<StaffProfile, bool>> predicate = s => s.Position != Domain.Enums.StaffPosition.Administrator;
         
         // Apply conditional filters
         if (!string.IsNullOrEmpty(filter.StaffCode))

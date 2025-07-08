@@ -120,13 +120,19 @@ public class UpdateStaffCommandHandler : IRequestHandler<UpdateStaffCommand, Res
 
                     existingStaff.Email = request.Email;
 
-                    // Update IdentityUser email if exists
+                    // Update IdentityUser email if exists (use separate method to avoid tracking conflicts)
                     if (existingStaff.IdentityUser != null)
                     {
-                        existingStaff.IdentityUser.Email = request.Email;
-                        existingStaff.IdentityUser.UserName = request.Email;
-
-                        await _identityService.UpdateUserAsync(existingStaff.IdentityUser);
+                        var identityUserId = existingStaff.IdentityUser.Id;
+                        
+                        // Use separate IdentityService methods to avoid tracking conflicts
+                        var userResult = await _identityService.FindByIdAsync(identityUserId);
+                        if (userResult.IsSuccess && userResult.Data != null)
+                        {
+                            userResult.Data.Email = request.Email;
+                            userResult.Data.UserName = request.Email;
+                            await _identityService.UpdateUserAsync(userResult.Data);
+                        }
                     }
 
                     hasChanges = true;
@@ -149,12 +155,19 @@ public class UpdateStaffCommandHandler : IRequestHandler<UpdateStaffCommand, Res
                 {
                     var newIsActive = request.IsActive.Value;
 
-                    // Update IdentityUser.IsActive
+                    // Update IdentityUser.IsActive (use separate method to avoid tracking conflicts)
                     if (existingStaff.IdentityUser != null &&
                         newIsActive != existingStaff.IdentityUser.IsActive)
                     {
-                        existingStaff.IdentityUser.IsActive = newIsActive;
-                        await _identityService.UpdateUserAsync(existingStaff.IdentityUser);
+                        var identityUserId = existingStaff.IdentityUser.Id;
+                        
+                        // Use separate IdentityService methods to avoid tracking conflicts
+                        var userResult = await _identityService.FindByIdAsync(identityUserId);
+                        if (userResult.IsSuccess && userResult.Data != null)
+                        {
+                            userResult.Data.IsActive = newIsActive;
+                            await _identityService.UpdateUserAsync(userResult.Data);
+                        }
                         hasChanges = true;
                     }
 
@@ -169,9 +182,8 @@ public class UpdateStaffCommandHandler : IRequestHandler<UpdateStaffCommand, Res
 
                 if (!hasChanges)
                 {
-                    return Result<StaffResponse>.Failure(
-                        "No changes detected",
-                        ErrorCode.ValidationFailed);
+                    return Result<StaffResponse>.Success(
+                        _mapper.Map<StaffResponse>(existingStaff));
                 }
 
                 // 3. Update modified date

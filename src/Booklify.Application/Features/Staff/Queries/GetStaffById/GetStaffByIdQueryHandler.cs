@@ -24,10 +24,11 @@ public class GetStaffByIdQueryHandler : IRequestHandler<GetStaffByIdQuery, Resul
         try
         {
             // Get staff profile with identity user included for IsActive status
-            var staffProfile = await _unitOfWork.StaffProfileRepository.FindByCondition(
+            var staffProfile = await _unitOfWork.StaffProfileRepository.GetFirstOrDefaultAsync
+            (
                 x => x.Id == request.Id,
-                x => x.IdentityUser!
-            ).FirstOrDefaultAsync(cancellationToken);
+                x => x.IdentityUser
+            );
 
             if (staffProfile == null)
             {
