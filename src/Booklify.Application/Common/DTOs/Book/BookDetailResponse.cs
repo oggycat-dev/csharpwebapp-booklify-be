@@ -33,4 +33,33 @@ public class BookDetailResponse : BookListItemResponse
 
     [JsonPropertyName("tags")]
     public string? Tags { get; set; }
+
+    // ✅ Resume Reading Information - Only for User role, hidden when null for Admin/Staff
+    [JsonPropertyName("has_reading_progress")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? HasReadingProgress { get; set; }
+
+    [JsonPropertyName("current_chapter_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? CurrentChapterId { get; set; }
+
+    [JsonPropertyName("current_cfi")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CurrentCfi { get; set; }
+
+    [JsonPropertyName("reading_progress_percentage")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? ReadingProgressPercentage { get; set; }
+
+    [JsonPropertyName("completed_chapters_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CompletedChaptersCount { get; set; }
+
+    [JsonPropertyName("last_read_at")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DateTime? LastReadAt { get; set; }
+
+    [JsonPropertyName("is_book_completed")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsBookCompleted { get; set; }
 }

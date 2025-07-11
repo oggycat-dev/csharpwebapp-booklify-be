@@ -50,11 +50,6 @@ public interface IFileBackgroundService
     void ScheduleRecurringCleanup(string cronExpression = "0 3 * * 0", int retentionDays = 30);
 
     /// <summary>
-    /// Queue an EPUB processing job
-    /// </summary>
-    string QueueEpubProcessing(Guid bookId, string userId = "");
-
-    /// <summary>
     /// Queue an EPUB processing job with pre-downloaded content
     /// </summary>
     string QueueEpubProcessingWithContent(Guid bookId, string userId, byte[] fileContent, string fileExtension);

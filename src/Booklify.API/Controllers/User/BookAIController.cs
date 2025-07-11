@@ -13,7 +13,7 @@ namespace Booklify.API.Controllers.User;
 /// Controller for AI processing of book chapters
 /// </summary>
 [ApiController]
-[Route("api/books")]
+[Route("api/book-ai")]
 [ApiExplorerSettings(GroupName = "v1")]
 [Authorize]
 [Microsoft.AspNetCore.Http.Tags("User", "User_BookAI")]

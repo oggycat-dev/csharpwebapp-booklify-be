@@ -74,6 +74,21 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
             bool hasChanges = false;
             bool hasNewFile = request.File != null;
 
+            // Prepare file content for background processing if EPUB (before transaction)
+            byte[]? epubFileContent = null;
+            bool isEpubFile = false;
+            if (hasNewFile)
+            {
+                isEpubFile = _bookBusinessLogic.ShouldProcessEpub(request.File!);
+                if (isEpubFile)
+                {
+                    using var memoryStream = new MemoryStream();
+                    await request.File!.CopyToAsync(memoryStream);
+                    epubFileContent = memoryStream.ToArray();
+                    _logger.LogInformation("Cached EPUB file content for background processing during update");
+                }
+            }
+
             // Only prepare job data if there's a new file to process
             BookUpdateJobData? jobData = null;
             if (hasNewFile)
@@ -84,6 +99,13 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     return Result<BookResponse>.Failure(jobDataResult.Message, jobDataResult.ErrorCode ?? ErrorCode.InternalError);
                 }
                 jobData = jobDataResult.Data!;
+                
+                // Set file content and extension for background processing
+                if (isEpubFile && epubFileContent != null)
+                {
+                    jobData.FileContent = epubFileContent;
+                    jobData.FileExtension = Path.GetExtension(request.File!.FileName);
+                }
             }
 
             try
@@ -171,12 +193,11 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     newFileInfo = fileResult.Data!;
                     
                     // Use new EPUB processing workflow if file is EPUB
-                    var shouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(newFileInfo.Extension ?? string.Empty);
-                    if (shouldProcessEpub)
+                    if (isEpubFile)
                     {
-                        // For EPUB files, extract metadata and apply to book
+                        // For EPUB files, extract metadata and apply to book using IFormFile
                         var epubResult = await _bookBusinessLogic.UpdateBookWithEpubProcessingAsync(
-                            existingBook, newFileInfo, currentUserId, _unitOfWork, 
+                            existingBook, newFileInfo, request.File!, currentUserId, _unitOfWork, 
                             _epubService, _storageService, _logger);
                         
                         if (!epubResult.IsSuccess)
@@ -184,7 +205,7 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                             return Result<BookResponse>.Failure(epubResult.Message, epubResult.ErrorCode ?? ErrorCode.InternalError);
                         }
                         
-                        _logger.LogInformation("EPUB metadata extracted and applied for book {BookId} during update", existingBook.Id);
+                        _logger.LogInformation("EPUB metadata extracted and applied for book {BookId} during update using IFormFile", existingBook.Id);
                     }
                     else
                     {
@@ -195,9 +216,8 @@ public class UpdateBookCommandHandler : IRequestHandler<UpdateBookCommand, Resul
                     
                     hasChanges = true;
 
-                    // Check if should process EPUB - only set when there's a new file
-                    var fileExtension = Path.GetExtension(newFileInfo.FilePath);
-                    jobData!.ShouldProcessEpub = _bookBusinessLogic.ShouldProcessEpub(fileExtension);
+                    // Set background job processing flag
+                    jobData!.ShouldProcessEpub = isEpubFile;
                 }
 
                 if (!hasChanges)

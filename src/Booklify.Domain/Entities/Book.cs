@@ -24,6 +24,9 @@ public class Book : BaseEntity
     public int TotalRatings { get; set; } = 0;
     public int TotalViews { get; set; } = 0;
     
+    // Chapter count for reading progress calculation
+    public int TotalChapters { get; set; } = 0;
+    
     //Navigation Properties
     public virtual BookCategory? Category { get; set; }
     public virtual FileInfo? File { get; set; }

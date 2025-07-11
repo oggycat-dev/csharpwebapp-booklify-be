@@ -82,9 +82,20 @@ public class CreateBookCommandHandler : IRequestHandler<CreateBookCommand, Resul
 
                 var fileInfo = fileResult.Data!;
 
-                // Create book with complete EPUB processing workflow
+                // Prepare file content for background processing if EPUB (before creating book)
+                byte[]? epubFileContent = null;
+                var isEpubFile = _bookBusinessLogic.ShouldProcessEpub(command.Request.File);
+                if (isEpubFile)
+                {
+                    using var memoryStream = new MemoryStream();
+                    await command.Request.File.CopyToAsync(memoryStream);
+                    epubFileContent = memoryStream.ToArray();
+                    _logger.LogInformation("Cached EPUB file content for background processing");
+                }
+
+                // Create book with complete EPUB processing workflow using IFormFile
                 var bookResult = await _bookBusinessLogic.CreateBookWithEpubProcessingAsync(
-                    command.Request, staff!, fileInfo, currentUserId, _mapper, _unitOfWork,
+                    command.Request, staff!, fileInfo, command.Request.File, currentUserId, _mapper, _unitOfWork,
                     _epubService, _storageService, _logger);
                     
                 if (!bookResult.IsSuccess)
@@ -98,28 +109,20 @@ public class CreateBookCommandHandler : IRequestHandler<CreateBookCommand, Resul
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
                 
                 // Queue background job for EPUB chapter processing after successful transaction
-                if (_bookBusinessLogic.ShouldProcessEpub(fileInfo.Extension ?? string.Empty))
+                if (isEpubFile && epubFileContent != null)
                 {
                     try
                     {
-                        _logger.LogInformation("Queuing EPUB chapter processing job for book {BookId}", book.Id);
+                        _logger.LogInformation("Queuing EPUB chapter processing job for book {BookId} using cached file content", book.Id);
                         
-                        // Read file content for background processing
-                        var fileStream = await _storageService.DownloadFileAsync(fileInfo.FilePath!);
-                        if (fileStream != null)
-                        {
-                            using var memoryStream = new MemoryStream();
-                            await fileStream.CopyToAsync(memoryStream);
-                            var epubFileContent = memoryStream.ToArray();
-                            fileStream.Dispose();
-
-                            // Queue the background job with the file content using EPubService
-                            _epubService.ProcessEpubFileWithContent(book.Id, currentUserId, epubFileContent, fileInfo.Extension ?? ".epub");
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Could not download file for background processing for book {BookId}", book.Id);
-                        }
+                        // Use cached file content for background processing (no download needed)
+                        _bookBusinessLogic.QueueEpubProcessingWithFileContent(
+                            book.Id, 
+                            currentUserId, 
+                            epubFileContent, 
+                            fileInfo.Extension ?? ".epub",
+                            _epubService,
+                            _logger);
                     }
                     catch (Exception ex)
                     {

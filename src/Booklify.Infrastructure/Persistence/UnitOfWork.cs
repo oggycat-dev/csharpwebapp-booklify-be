@@ -21,6 +21,8 @@ public class UnitOfWork : IUnitOfWork
     private IFileInfoRepository _fileInfoRepository;
     private IChapterAIResultRepository _chapterAIResultRepository;
     private IChapterNoteRepository _chapterNoteRepository;
+    private IReadingProgressRepository _readingProgressRepository;
+    private IChapterReadingProgressRepository _chapterReadingProgressRepository;
 
     public UnitOfWork(
         BooklifyDbContext businessContext,
@@ -31,7 +33,9 @@ public class UnitOfWork : IUnitOfWork
         IUserProfileRepository userProfileRepository,
         IFileInfoRepository fileInfoRepository,
         IChapterAIResultRepository chapterAIResultRepository,
-        IChapterNoteRepository chapterNoteRepository)
+        IChapterNoteRepository chapterNoteRepository,
+        IReadingProgressRepository readingProgressRepository,
+        IChapterReadingProgressRepository chapterReadingProgressRepository)
     {
         _businessContext = businessContext;
         _staffProfileRepository = staffProfileRepository;
@@ -42,6 +46,8 @@ public class UnitOfWork : IUnitOfWork
         _fileInfoRepository = fileInfoRepository;
         _chapterAIResultRepository = chapterAIResultRepository;
         _chapterNoteRepository = chapterNoteRepository;
+        _readingProgressRepository = readingProgressRepository;
+        _chapterReadingProgressRepository = chapterReadingProgressRepository;
     }
 
     public IBooklifyDbContext BusinessContext => _businessContext;
@@ -61,6 +67,10 @@ public class UnitOfWork : IUnitOfWork
     public IChapterAIResultRepository ChapterAIResultRepository => _chapterAIResultRepository;
 
     public IChapterNoteRepository ChapterNoteRepository => _chapterNoteRepository;
+
+    public IReadingProgressRepository ReadingProgressRepository => _readingProgressRepository;
+
+    public IChapterReadingProgressRepository ChapterReadingProgressRepository => _chapterReadingProgressRepository;
 
     /// <summary>
     /// Begin a transaction

@@ -36,6 +36,7 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
     public DbSet<Chapter> Chapters { get; set; }
     public DbSet<ChapterNote> ChapterNotes { get; set; }
     public DbSet<ReadingProgress> ReadingProgresses { get; set; }
+    public DbSet<ChapterReadingProgress> ChapterReadingProgresses { get; set; }
     
     // AI-related entities
     public DbSet<ChapterAIResult> ChapterAIResults { get; set; }
@@ -460,55 +461,66 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
             entity.HasIndex(n => new { n.UserId, n.Status });
         });
 
-        // Configure ReadingProgress (EPUB-focused)
+        // Configure ReadingProgress (Simple book-level progress tracking)
         builder.Entity<ReadingProgress>(entity =>
         {
             entity.ToTable("ReadingProgresses");
             
-            // Required fields for EPUB tracking
-            entity.Property(rp => rp.CurrentCfi).IsRequired().HasMaxLength(500);
-            entity.Property(rp => rp.LastReadAt).IsRequired();
-            entity.Property(rp => rp.TotalReadingTimeMinutes).IsRequired();
-            
-            // Progress percentage fields with precision
-            entity.Property(rp => rp.ChapterCompletionPercentage).HasPrecision(5, 2); // 0.00 - 100.00
-            entity.Property(rp => rp.CfiProgressPercentage).HasPrecision(5, 2); // 0.00 - 100.00
-            entity.Property(rp => rp.OverallProgressPercentage).HasPrecision(5, 2); // 0.00 - 100.00
-            
-            // Optional fields
-            entity.Property(rp => rp.CompletedChapterIds).IsRequired(false).HasMaxLength(2000); // JSON string
-            entity.Property(rp => rp.SessionStartTime).IsRequired(false);
-            
-            // Configure relationships with CASCADE delete
+            // Configure relationships
             entity.HasOne(rp => rp.Book)
                 .WithMany(b => b.ReadingProgresses)
                 .HasForeignKey(rp => rp.BookId)
-                .OnDelete(DeleteBehavior.Cascade); // When Book is deleted, delete ReadingProgress
+                .OnDelete(DeleteBehavior.Cascade);
                 
             entity.HasOne(rp => rp.User)
                 .WithMany(u => u.ReadingProgresses)
                 .HasForeignKey(rp => rp.UserId)
-                .OnDelete(DeleteBehavior.Cascade); // When User is deleted, delete ReadingProgress
+                .OnDelete(DeleteBehavior.Cascade);
                 
             entity.HasOne(rp => rp.CurrentChapter)
                 .WithMany()
                 .HasForeignKey(rp => rp.CurrentChapterId)
                 .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction); // Avoid cascade path conflicts - Chapter deletion handled by Book cascade
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            entity.HasMany(rp => rp.ChapterProgresses)
+                .WithOne(crp => crp.ReadingProgress)
+                .HasForeignKey(crp => crp.ReadingProgressId)
+                .OnDelete(DeleteBehavior.Cascade);
             
-            // Add indexes for EPUB-specific queries
+            // Basic indexes for foreign keys only
             entity.HasIndex(rp => rp.BookId);
             entity.HasIndex(rp => rp.UserId);
             entity.HasIndex(rp => rp.CurrentChapterId);
-            entity.HasIndex(rp => rp.LastReadAt);
-            entity.HasIndex(rp => rp.CurrentCfi); // For CFI-based queries
             
-            // Composite indexes for common EPUB reading patterns
-            entity.HasIndex(rp => new { rp.UserId, rp.BookId }); // For finding user's progress on specific book
-            entity.HasIndex(rp => new { rp.UserId, rp.LastReadAt }); // For user's recent reading
-            entity.HasIndex(rp => new { rp.BookId, rp.LastReadAt }); // For book's recent readers
-            entity.HasIndex(rp => new { rp.BookId, rp.OverallProgressPercentage }); // For book completion analytics
-            entity.HasIndex(rp => new { rp.UserId, rp.OverallProgressPercentage }); // For user reading completion analytics
+            // Unique constraint: one progress per user per book
+            entity.HasIndex(rp => new { rp.UserId, rp.BookId })
+                .IsUnique();
+        });
+
+        // Configure ChapterReadingProgress (Simple chapter access tracking)
+        builder.Entity<ChapterReadingProgress>(entity =>
+        {
+            entity.ToTable("ChapterReadingProgresses");
+            
+            // Configure relationships
+            entity.HasOne(crp => crp.ReadingProgress)
+                .WithMany(rp => rp.ChapterProgresses)
+                .HasForeignKey(crp => crp.ReadingProgressId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(crp => crp.Chapter)
+                .WithMany(c => c.ReadingProgresses)
+                .HasForeignKey(crp => crp.ChapterId)
+                .OnDelete(DeleteBehavior.NoAction); // Changed from Cascade to NoAction to prevent cascade conflicts
+            
+            // Basic indexes for foreign keys only
+            entity.HasIndex(crp => crp.ReadingProgressId);
+            entity.HasIndex(crp => crp.ChapterId);
+            
+            // Unique constraint: one progress per reading progress per chapter
+            entity.HasIndex(crp => new { crp.ReadingProgressId, crp.ChapterId })
+                .IsUnique();
         });
 
         // Identity-related configurations
