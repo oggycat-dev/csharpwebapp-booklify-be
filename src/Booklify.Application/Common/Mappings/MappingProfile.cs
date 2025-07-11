@@ -404,6 +404,32 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.IsCompleted, opt => opt.MapFrom(src => src.IsCompleted))
             .ForMember(dest => dest.CompletedAt, opt => opt.MapFrom(src => src.CompletedAt))
             .ForMember(dest => dest.LastReadAt, opt => opt.MapFrom(src => src.LastReadAt));
+
+        // User mappings
+        CreateMap<UserProfile, Booklify.Application.Common.DTOs.User.UserResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName))
+            .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName))
+            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.FullName))
+            .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => src.Phone))
+            .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender))
+            .ForMember(dest => dest.GenderName, opt => opt.MapFrom(src => GetGenderName(src.Gender)))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+            .ForMember(dest => dest.StatusString, opt => opt.MapFrom(src => src.Status.ToString()))
+            // Username, Email, and IsActive will be set manually from IdentityUser
+            .ForMember(dest => dest.Username, opt => opt.Ignore())
+            .ForMember(dest => dest.Email, opt => opt.Ignore())
+            .ForMember(dest => dest.IsActive, opt => opt.Ignore());
+
+        CreateMap<UserProfile, Booklify.Application.Common.DTOs.User.UserDetailResponse>()
+            .IncludeBase<UserProfile, Booklify.Application.Common.DTOs.User.UserResponse>()
+            .ForMember(dest => dest.Birthday, opt => opt.MapFrom(src => src.Birthday))
+            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address))
+            // AvatarUrl, Subscription, HasActiveSubscription will be set manually in handler
+            .ForMember(dest => dest.AvatarUrl, opt => opt.Ignore())
+            .ForMember(dest => dest.Subscription, opt => opt.Ignore())
+            .ForMember(dest => dest.HasActiveSubscription, opt => opt.Ignore());
     }
 
     // Helper method to get display name from user profiles
@@ -452,6 +478,18 @@ public class MappingProfile : Profile
             StaffPosition.Staff => "Staff",
             StaffPosition.LibraryManager => "Library Manager",
             _ => "Unknown"
+        };
+    }
+
+    // Helper method to get gender name from Gender enum
+    private static string? GetGenderName(Gender? gender)
+    {
+        return gender switch
+        {
+            Gender.Male => "Male",
+            Gender.Female => "Female", 
+            Gender.Other => "Other",
+            _ => null
         };
     }
 }
