@@ -8,6 +8,7 @@ using Booklify.Application.Common.DTOs.Subscription;
 using Booklify.Domain.Enums;
 using Booklify.Application.Common.DTOs.Book;
 using Booklify.Application.Common.DTOs.ChapterNote;
+using Booklify.Application.Common.DTOs.ReadingProgress;
 
 namespace Booklify.Application.Common.Mappings;
 
@@ -237,6 +238,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.AverageRating, opt => opt.MapFrom(src => src.AverageRating))
             .ForMember(dest => dest.TotalRatings, opt => opt.MapFrom(src => src.TotalRatings))
             .ForMember(dest => dest.TotalViews, opt => opt.MapFrom(src => src.TotalViews))
+            .ForMember(dest => dest.TotalPages, opt => opt.MapFrom(src => src.PageCount))
+            .ForMember(dest => dest.TotalChapters, opt => opt.MapFrom(src => src.TotalChapters))
             .ForMember(dest => dest.PublishedDate, opt => opt.MapFrom(src => src.PublishedDate))
             .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt));
 
@@ -329,6 +332,78 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi))
             .ForMember(dest => dest.ParentChapterId, opt => opt.MapFrom(src => src.ParentChapterId))
             .ForMember(dest => dest.ChildChapters, opt => opt.Ignore()); // Will be populated manually
+
+        // ReadingProgress mappings
+        CreateMap<TrackingReadingSessionRequest, ReadingProgress>()
+            .ForMember(dest => dest.BookId, opt => opt.MapFrom(src => src.BookId))
+            .ForMember(dest => dest.LastReadAt, opt => opt.MapFrom(src => DateTime.UtcNow))
+            .ForMember(dest => dest.FirstReadAt, opt => opt.MapFrom(src => DateTime.UtcNow)) //only for new reading progress
+            // Ignore other properties that will be set by business logic
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.UserId, opt => opt.Ignore())
+            .ForMember(dest => dest.CompletedChaptersCount, opt => opt.Ignore())
+            .ForMember(dest => dest.Book, opt => opt.Ignore())
+            .ForMember(dest => dest.User, opt => opt.Ignore())
+            .ForMember(dest => dest.CurrentChapter, opt => opt.Ignore())
+            .ForMember(dest => dest.ChapterProgresses, opt => opt.Ignore())
+            .ForMember(dest => dest.IsCompleted, opt => opt.Ignore())
+            .ForMember(dest => dest.CurrentChapterId, opt => opt.Ignore());
+
+        // TrackingReadingSessionRequest to ChapterReadingProgress mapping
+        CreateMap<TrackingReadingSessionRequest, ChapterReadingProgress>()
+            .ForMember(dest => dest.ChapterId, opt => opt.MapFrom(src => src.ChapterId))
+            .ForMember(dest => dest.CurrentCfi, opt => opt.MapFrom(src => src.CurrentCfi))
+            .ForMember(dest => dest.IsCompleted, opt => opt.MapFrom(src => src.IsCompleted))
+            .ForMember(dest => dest.CompletedAt, opt => opt.MapFrom(src => src.IsCompleted ? DateTime.UtcNow : (DateTime?)null))
+            .ForMember(dest => dest.LastReadAt, opt => opt.MapFrom(src => DateTime.UtcNow))
+            // Ignore other properties that will be set by business logic
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.ReadingProgressId, opt => opt.Ignore())
+            .ForMember(dest => dest.ReadingProgress, opt => opt.Ignore())
+            .ForMember(dest => dest.Chapter, opt => opt.Ignore());
+
+        // Simplified TrackingSessionResponse mapping - no navigation properties needed
+        CreateMap<ReadingProgress, TrackingSessionResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.BookId, opt => opt.MapFrom(src => src.BookId))
+            .ForMember(dest => dest.CurrentChapterId, opt => opt.MapFrom(src => src.CurrentChapterId))
+            .ForMember(dest => dest.CompletedChaptersCount, opt => opt.MapFrom(src => src.CompletedChaptersCount))
+            .ForMember(dest => dest.IsCompleted, opt => opt.MapFrom(src => src.IsCompleted))
+            .ForMember(dest => dest.LastReadAt, opt => opt.MapFrom(src => src.LastReadAt))
+            // TotalChaptersCount and OverallProgressPercentage will be set manually in handler
+            .ForMember(dest => dest.TotalChaptersCount, opt => opt.Ignore())
+            .ForMember(dest => dest.OverallProgressPercentage, opt => opt.Ignore());
+
+        CreateMap<ReadingProgress, ReadingProgressResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.BookId, opt => opt.MapFrom(src => src.BookId))
+            .ForMember(dest => dest.BookTitle, opt => opt.MapFrom(src => src.Book != null ? src.Book.Title : string.Empty))
+            .ForMember(dest => dest.CurrentChapterId, opt => opt.MapFrom(src => src.CurrentChapterId))
+            .ForMember(dest => dest.CurrentChapterTitle, opt => opt.MapFrom(src => src.CurrentChapter != null ? src.CurrentChapter.Title : null))
+            .ForMember(dest => dest.LastReadAt, opt => opt.MapFrom(src => src.LastReadAt))
+            .ForMember(dest => dest.FirstReadAt, opt => opt.MapFrom(src => src.FirstReadAt))
+            .ForMember(dest => dest.CompletedChaptersCount, opt => opt.MapFrom(src => src.CompletedChaptersCount))
+            .ForMember(dest => dest.OverallProgressPercentage, opt => opt.MapFrom(src => 
+                src.Book != null && src.Book.TotalChapters > 0 ? 
+                Math.Round((double)src.CompletedChaptersCount / src.Book.TotalChapters * 100, 2) : 0))
+            // Manual calculation fields - will be set by business logic
+            //.ForMember(dest => dest.OverallProgressPercentage, opt => opt.Ignore())
+            .ForMember(dest => dest.TotalChaptersCount, opt => opt.MapFrom(src => src.Book != null ? src.Book.TotalChapters : 0))
+            .ForMember(dest => dest.CompletedChapterIds, opt => opt.Ignore())
+            .ForMember(dest => dest.AccessedChapterIds, opt => opt.Ignore())
+            .ForMember(dest => dest.ChapterProgresses, opt => opt.Ignore());
+
+        // ChapterReadingProgress mappings
+        CreateMap<ChapterReadingProgress, ChapterReadingProgressResponse>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dest => dest.ReadingProgressId, opt => opt.MapFrom(src => src.ReadingProgressId))
+            .ForMember(dest => dest.ChapterId, opt => opt.MapFrom(src => src.ChapterId))
+            .ForMember(dest => dest.ChapterTitle, opt => opt.MapFrom(src => src.Chapter != null ? src.Chapter.Title : string.Empty))
+            .ForMember(dest => dest.ChapterOrder, opt => opt.MapFrom(src => src.Chapter != null ? src.Chapter.Order : 0))
+            .ForMember(dest => dest.CurrentCfi, opt => opt.MapFrom(src => src.CurrentCfi))
+            .ForMember(dest => dest.IsCompleted, opt => opt.MapFrom(src => src.IsCompleted))
+            .ForMember(dest => dest.CompletedAt, opt => opt.MapFrom(src => src.CompletedAt))
+            .ForMember(dest => dest.LastReadAt, opt => opt.MapFrom(src => src.LastReadAt));
     }
 
     // Helper method to get display name from user profiles

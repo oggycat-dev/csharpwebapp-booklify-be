@@ -48,7 +48,14 @@ public class BookListItemResponse
     public int TotalRatings { get; set; }
 
     [JsonPropertyName("total_views")]
+
     public int TotalViews { get; set; }
+
+    [JsonPropertyName("total_pages")]
+    public int TotalPages { get; set; }
+
+    [JsonPropertyName("total_chapters")]
+    public int TotalChapters { get; set; }
 
     [JsonPropertyName("published_date")]
     public DateTime? PublishedDate { get; set; }

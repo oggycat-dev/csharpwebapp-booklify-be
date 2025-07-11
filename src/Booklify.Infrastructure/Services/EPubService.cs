@@ -21,7 +21,7 @@ public class EPubService : IEPubService
         _logger = logger;
     }
 
-    public async Task<List<Chapter>> ExtractChapters(string epubFilePath)
+    public async Task<(List<Chapter> chapters, int totalCount)> ExtractChapters(string epubFilePath)
     {
         try
         {
@@ -161,7 +161,7 @@ public class EPubService : IEPubService
             _logger.LogInformation("Successfully extracted {ChapterCount} chapters with proper hierarchy", 
                 chapters.Count);
             
-            return chapters;
+            return (chapters, chapters.Count);
         }
         catch (Exception ex)
         {
@@ -378,21 +378,6 @@ public class EPubService : IEPubService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to extract metadata from EPUB file: {FilePath}", epubFilePath);
-            throw;
-        }
-    }
-
-    public string ProcessEpubFile(Guid bookId, string userId = "", FileUploadType uploadType = FileUploadType.None)
-    {
-        try
-        {
-            var jobId = _fileBackgroundService.QueueEpubProcessing(bookId, userId);
-            _logger.LogInformation("Queued EPUB processing for book {BookId} with job {JobId}", bookId, jobId);
-            return jobId;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to queue EPUB processing for book {BookId}", bookId);
             throw;
         }
     }

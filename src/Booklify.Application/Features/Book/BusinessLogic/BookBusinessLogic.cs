@@ -160,12 +160,13 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
-    /// Create book with complete EPUB processing workflow
+    /// Create book with complete EPUB processing workflow using IFormFile content
     /// </summary>
     public async Task<Result<Domain.Entities.Book>> CreateBookWithEpubProcessingAsync(
         object bookRequest,
         StaffProfile staff,
         Domain.Entities.FileInfo fileInfo,
+        Microsoft.AspNetCore.Http.IFormFile originalFile,
         string userId,
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -182,32 +183,31 @@ public class BookBusinessLogic : IBookBusinessLogic
 
         var book = bookResult.Data!;
 
-        // Check if file is EPUB and extract metadata
-        var shouldProcessEpub = ShouldProcessEpub(fileInfo.Extension ?? string.Empty);
+        // Check if file is EPUB and extract metadata using IFormFile
+        var shouldProcessEpub = ShouldProcessEpub(originalFile);
         if (shouldProcessEpub)
         {
             try
             {
-                logger.LogInformation("Detected EPUB file for book {BookId}, extracting metadata immediately", book.Id);
+                logger.LogInformation("Detected EPUB file for book {BookId}, extracting metadata from IFormFile", book.Id);
                 
-                // Extract metadata and apply to book entity (without calling UpdateAsync since entity is already being tracked)
-                var metadataResult = await ExtractAndApplyEpubMetadataAsync(
-                    book, fileInfo, epubService, storageService, logger);
+                // Extract metadata using IFormFile stream directly
+                var metadataResult = await ExtractAndApplyEpubMetadataFromFormFileAsync(
+                    book, originalFile, epubService, storageService, logger);
                 
                 if (metadataResult.IsSuccess)
                 {
-                    // No need to call UpdateAsync - Entity Framework will track changes automatically
-                    logger.LogInformation("Successfully applied EPUB metadata to book {BookId}", book.Id);
+                    logger.LogInformation("Successfully applied EPUB metadata to book {BookId} from IFormFile", book.Id);
                 }
                 else
                 {
-                    logger.LogWarning("Failed to extract EPUB metadata for book {BookId}: {Message}", 
+                    logger.LogWarning("Failed to extract EPUB metadata from IFormFile for book {BookId}: {Message}", 
                         book.Id, metadataResult.Message);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to extract EPUB metadata during book creation for book {BookId}", book.Id);
+                logger.LogError(ex, "Failed to extract EPUB metadata from IFormFile during book creation for book {BookId}", book.Id);
                 // Continue with book creation even if metadata extraction fails
             }
         }
@@ -216,11 +216,11 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
-    /// Extract metadata from EPUB and apply to book entity
+    /// Extract metadata from EPUB using IFormFile and apply to book entity
     /// </summary>
-    private async Task<Result<bool>> ExtractAndApplyEpubMetadataAsync(
+    private async Task<Result<bool>> ExtractAndApplyEpubMetadataFromFormFileAsync(
         Domain.Entities.Book book,
-        Domain.Entities.FileInfo fileInfo,
+        Microsoft.AspNetCore.Http.IFormFile formFile,
         IEPubService epubService,
         IStorageService storageService,
         Microsoft.Extensions.Logging.ILogger logger)
@@ -231,22 +231,10 @@ public class BookBusinessLogic : IBookBusinessLogic
             var tempFilePath = Path.GetTempFileName();
             tempFilePath = Path.ChangeExtension(tempFilePath, ".epub");
             
-            byte[]? epubFileContent = null;
-            
-            // Read file content from storage 
-            var fileStream = await storageService.DownloadFileAsync(fileInfo.FilePath!);
-            if (fileStream != null)
+            // Copy IFormFile content to temp file
+            using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
             {
-                using var memoryStream = new MemoryStream();
-                await fileStream.CopyToAsync(memoryStream);
-                epubFileContent = memoryStream.ToArray();
-                await File.WriteAllBytesAsync(tempFilePath, epubFileContent);
-                fileStream.Dispose();
-            }
-            else
-            {
-                logger.LogError("Failed to download EPUB file for metadata extraction");
-                return Result<bool>.Failure("Could not download EPUB file for metadata extraction");
+                await formFile.CopyToAsync(fileStream);
             }
             
             // Extract metadata from EPUB
@@ -268,9 +256,6 @@ public class BookBusinessLogic : IBookBusinessLogic
                         book.CoverImageUrl = coverImageUrl;
                     }
                 }
-                
-                // Note: Background job for chapter processing will be queued after transaction commit
-                // This ensures the book exists in the database before background processing
             }
             
             // Clean up temporary file
@@ -281,7 +266,7 @@ public class BookBusinessLogic : IBookBusinessLogic
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error during EPUB metadata extraction for book {BookId}", book.Id);
+            logger.LogError(ex, "Error during EPUB metadata extraction from IFormFile for book {BookId}", book.Id);
             return Result<bool>.Failure($"EPUB metadata extraction failed: {ex.Message}");
         }
     }
@@ -370,35 +355,12 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
-    /// Queue EPUB processing job for chapter extraction
-    /// </summary>
-    private void QueueEpubProcessingJob(
-        Guid bookId,
-        string userId,
-        byte[] epubFileContent,
-        string fileExtension,
-        IEPubService epubService,
-        Microsoft.Extensions.Logging.ILogger logger)
-    {
-        try
-        {
-            logger.LogInformation("Queueing EPUB processing job for book {BookId} with file content", bookId);
-            var jobId = epubService.ProcessEpubFileWithContent(bookId, userId, epubFileContent, fileExtension);
-            logger.LogInformation("EPUB processing job queued with ID: {JobId} for book {BookId}", jobId, bookId);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to queue EPUB processing for book: {BookId}", bookId);
-            // Background job failure doesn't affect main operation - book was created successfully
-        }
-    }
-
-    /// <summary>
-    /// Update book with complete EPUB processing workflow (for new file uploads)
+    /// Update book with complete EPUB processing workflow using IFormFile content
     /// </summary>
     public async Task<Result<Domain.Entities.Book>> UpdateBookWithEpubProcessingAsync(
         Domain.Entities.Book existingBook,
         Domain.Entities.FileInfo newFileInfo,
+        Microsoft.AspNetCore.Http.IFormFile originalFile,
         string userId,
         IUnitOfWork unitOfWork,
         IEPubService epubService,
@@ -409,31 +371,31 @@ public class BookBusinessLogic : IBookBusinessLogic
         existingBook.FilePath = newFileInfo.FilePath;
         existingBook.File = newFileInfo;
 
-        // Check if file is EPUB and extract metadata
-        var shouldProcessEpub = ShouldProcessEpub(newFileInfo.Extension ?? string.Empty);
+        // Check if file is EPUB and extract metadata using IFormFile
+        var shouldProcessEpub = ShouldProcessEpub(originalFile);
         if (shouldProcessEpub)
         {
             try
             {
-                logger.LogInformation("Detected EPUB file for book {BookId}, extracting metadata for update", existingBook.Id);
+                logger.LogInformation("Detected EPUB file for book {BookId}, extracting metadata from IFormFile for update", existingBook.Id);
                 
-                // Extract metadata and apply to book
-                var metadataResult = await ExtractAndApplyEpubMetadataAsync(
-                    existingBook, newFileInfo, epubService, storageService, logger);
+                // Extract metadata using IFormFile stream directly
+                var metadataResult = await ExtractAndApplyEpubMetadataFromFormFileAsync(
+                    existingBook, originalFile, epubService, storageService, logger);
                 
                 if (metadataResult.IsSuccess)
                 {
-                    logger.LogInformation("Successfully applied EPUB metadata to existing book {BookId}", existingBook.Id);
+                    logger.LogInformation("Successfully applied EPUB metadata to existing book {BookId} from IFormFile", existingBook.Id);
                 }
                 else
                 {
-                    logger.LogWarning("Failed to extract EPUB metadata for book update {BookId}: {Message}", 
+                    logger.LogWarning("Failed to extract EPUB metadata from IFormFile for book update {BookId}: {Message}", 
                         existingBook.Id, metadataResult.Message);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to extract EPUB metadata during book update for book {BookId}", existingBook.Id);
+                logger.LogError(ex, "Failed to extract EPUB metadata from IFormFile during book update for book {BookId}", existingBook.Id);
                 // Continue with book update even if metadata extraction fails
             }
         }
@@ -466,6 +428,27 @@ public class BookBusinessLogic : IBookBusinessLogic
     }
 
     /// <summary>
+    /// Check if IFormFile is EPUB and should be processed
+    /// </summary>
+    public bool ShouldProcessEpub(Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        if (file == null)
+        {
+            return false;
+        }
+
+        // Check by file extension from filename
+        var extension = Path.GetExtension(file.FileName);
+        if (ShouldProcessEpub(extension))
+        {
+            return true;
+        }
+
+        // Fallback: Check by content type
+        return file.ContentType?.ToLowerInvariant() == "application/epub+zip";
+    }
+
+    /// <summary>
     /// Prepare background job data before transaction for book updates
     /// This method is only called when there's a new file to process
     /// </summary>
@@ -488,8 +471,12 @@ public class BookBusinessLogic : IBookBusinessLogic
             jobData.FilePathToDelete = book.FilePath;
             jobData.FileIdToDelete = book.File?.Id;
             
-            // ShouldProcessEpub will be set later when we know the new file extension
+            // ShouldProcessEpub will be set later when we know the new file type
             jobData.ShouldProcessEpub = false;
+            
+            // FileContent and FileExtension will be set by caller if EPUB
+            jobData.FileContent = null;
+            jobData.FileExtension = null;
         }
 
         return Result<BookUpdateJobData>.Success(jobData);
@@ -562,9 +549,19 @@ public class BookBusinessLogic : IBookBusinessLogic
         {
             try
             {
-                logger.LogInformation("Detected new EPUB file for book {BookId}, queueing background processing for chapter extraction and cover image extraction", bookId);
-                var epubJobId = epubService.ProcessEpubFile(bookId, userId);
-                logger.LogInformation("EPUB processing job queued with ID: {JobId} - this will extract chapters and cover image", epubJobId);
+                logger.LogInformation("Detected new EPUB file for book {BookId}, queueing background processing for chapter extraction", bookId);
+                
+                if (jobData.FileContent != null && !string.IsNullOrEmpty(jobData.FileExtension))
+                {
+                    // Use file content directly if available (avoids re-downloading)
+                    logger.LogInformation("Using provided file content for EPUB processing for book {BookId}", bookId);
+                    var epubJobId = epubService.ProcessEpubFileWithContent(bookId, userId, jobData.FileContent, jobData.FileExtension);
+                    logger.LogInformation("EPUB processing job queued with ID: {JobId} - this will extract chapters", epubJobId);
+                }
+                else
+                {
+                    logger.LogWarning("No file content provided for EPUB processing for book {BookId}", bookId);
+                }
             }
             catch (Exception ex)
             {
@@ -574,6 +571,30 @@ public class BookBusinessLogic : IBookBusinessLogic
         }
 
         logger.LogInformation("Completed background job queueing for book {BookId}", bookId);
+    }
+
+    /// <summary>
+    /// Queue EPUB background processing job with file content from IFormFile
+    /// </summary>
+    public void QueueEpubProcessingWithFileContent(
+        Guid bookId,
+        string userId,
+        byte[] fileContent,
+        string fileExtension,
+        IEPubService epubService,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        try
+        {
+            logger.LogInformation("Queueing EPUB processing job for book {BookId} with provided file content", bookId);
+            var jobId = epubService.ProcessEpubFileWithContent(bookId, userId, fileContent, fileExtension);
+            logger.LogInformation("EPUB processing job queued with ID: {JobId} for book {BookId}", jobId, bookId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to queue EPUB processing with file content for book: {BookId}", bookId);
+            // Background job failure doesn't affect main operation - book was created successfully
+        }
     }
 
     /// <summary>
@@ -642,7 +663,7 @@ public class BookBusinessLogic : IBookBusinessLogic
             // Determine user role and authentication status
             bool isAuthenticated = currentUserService?.IsAuthenticated ?? false;
             var userRoles = currentUserService?.Roles?.ToList() ?? new List<string>();
-            bool isAdminOrStaff = userRoles.Contains("Admin") || userRoles.Contains("Staff");
+            bool isAdminOrStaff = userRoles.Contains(Role.Admin.ToString()) || userRoles.Contains(Role.Staff.ToString());
 
             // Status validation based on role
             if (!isAdminOrStaff)
@@ -671,11 +692,117 @@ public class BookBusinessLogic : IBookBusinessLogic
             // Check if book has chapters (without loading them)
             response.HasChapters = await unitOfWork.ChapterRepository.AnyAsync(c => c.BookId == bookId);
 
+            // ✅ Get resume reading information for authenticated users
+            await EnrichWithReadingProgressAsync(response, bookId, currentUserService, unitOfWork);
+
             return Result<BookDetailResponse>.Success(response);
         }
         catch (Exception)
         {
             return Result<BookDetailResponse>.Failure("Lỗi khi lấy thông tin sách", ErrorCode.InternalError);
+        }
+    }
+
+    /// <summary>
+    /// Enrich BookDetailResponse with reading progress information for User role only
+    /// </summary>
+    private async Task EnrichWithReadingProgressAsync(
+        BookDetailResponse response, 
+        Guid bookId, 
+        ICurrentUserService? currentUserService, 
+        IUnitOfWork unitOfWork)
+    {
+        // ✅ Initialize all reading progress fields as null (will be ignored in JSON for Admin/Staff)
+        response.HasReadingProgress = null;
+        response.CurrentChapterId = null;
+        response.CurrentCfi = null;
+        response.ReadingProgressPercentage = null;
+        response.CompletedChaptersCount = null;
+        response.LastReadAt = null;
+        response.IsBookCompleted = null;
+
+        // ✅ Only get reading progress for authenticated users with "User" role
+        if (currentUserService?.IsAuthenticated != true || string.IsNullOrEmpty(currentUserService.UserId))
+        {
+            return;
+        }
+
+        var userRoles = currentUserService.Roles?.ToList() ?? new List<string>();
+        bool isUser = userRoles.Contains(Role.User.ToString());
+        bool isAdminOrStaff = userRoles.Contains(Role.Admin.ToString()) || userRoles.Contains(Role.Staff.ToString());
+
+        // ✅ Admin and Staff don't use tracking functionality - leave fields as null
+        if (isAdminOrStaff)
+        {
+            return;
+        }
+
+        // ✅ Only process reading progress for User role
+        if (!isUser)
+        {
+            return;
+        }
+
+        try
+        {
+            // Get user profile
+            var userProfile = await unitOfWork.UserProfileRepository.GetFirstOrDefaultAsync(
+                x => x.IdentityUserId == currentUserService.UserId);
+
+            if (userProfile == null)
+            {
+                return;
+            }
+
+            // Get reading progress for this book
+            var readingProgress = await unitOfWork.ReadingProgressRepository.GetFirstOrDefaultAsync(
+                x => x.UserId == userProfile.Id && x.BookId == bookId);
+
+            if (readingProgress == null)
+            {
+                // ✅ No reading progress found for User - set explicit values (not null, so they appear in JSON)
+                response.HasReadingProgress = false;
+                response.ReadingProgressPercentage = 0;
+                response.CompletedChaptersCount = 0;
+                response.IsBookCompleted = false;
+                // CurrentChapterId, CurrentCfi, LastReadAt remain null
+                return;
+            }
+
+            // ✅ Found reading progress - populate resume reading info for User role
+            response.HasReadingProgress = true;
+            response.CurrentChapterId = readingProgress.CurrentChapterId;
+            response.CompletedChaptersCount = readingProgress.CompletedChaptersCount;
+            response.LastReadAt = readingProgress.LastReadAt;
+            response.IsBookCompleted = readingProgress.IsCompleted;
+
+            // Calculate reading progress percentage
+            if (response.TotalChapters > 0)
+            {
+                response.ReadingProgressPercentage = Math.Round(
+                    (double)readingProgress.CompletedChaptersCount / response.TotalChapters * 100, 2);
+            }
+            else
+            {
+                response.ReadingProgressPercentage = 0;
+            }
+
+            // Get current CFI from the latest chapter reading progress
+            if (readingProgress.CurrentChapterId.HasValue)
+            {
+                var currentChapterProgress = await unitOfWork.ChapterReadingProgressRepository.GetFirstOrDefaultAsync(
+                    x => x.ReadingProgressId == readingProgress.Id && x.ChapterId == readingProgress.CurrentChapterId.Value);
+
+                if (currentChapterProgress != null)
+                {
+                    response.CurrentCfi = currentChapterProgress.CurrentCfi;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // If any error occurs getting reading progress, just leave default values
+            // Don't let reading progress errors break the main book detail response
         }
     }
 
@@ -879,6 +1006,16 @@ public class BookBusinessLogic : IBookBusinessLogic
                 "Lỗi khi lấy danh sách sách", 
                 ErrorCode.InternalError);
         }
+    }
+
+    /// <summary>
+    /// Read file content from IFormFile as byte array
+    /// </summary>
+    private static async Task<byte[]> ReadFileContentAsync(IFormFile file)
+    {
+        using var memoryStream = new MemoryStream();
+        await file.CopyToAsync(memoryStream);
+        return memoryStream.ToArray();
     }
 
     /// <summary>

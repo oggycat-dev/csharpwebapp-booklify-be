@@ -57,12 +57,13 @@ public interface IBookBusinessLogic
         IUnitOfWork unitOfWork);
 
     /// <summary>
-    /// Create book with complete EPUB processing workflow
+    /// Create book with complete EPUB processing workflow using IFormFile content
     /// </summary>
     Task<Result<Domain.Entities.Book>> CreateBookWithEpubProcessingAsync(
         object bookRequest,
         StaffProfile staff,
         Domain.Entities.FileInfo fileInfo,
+        Microsoft.AspNetCore.Http.IFormFile originalFile,
         string userId,
         IMapper mapper,
         IUnitOfWork unitOfWork,
@@ -71,11 +72,12 @@ public interface IBookBusinessLogic
         Microsoft.Extensions.Logging.ILogger logger);
 
     /// <summary>
-    /// Update book with complete EPUB processing workflow (for new file uploads)
+    /// Update book with complete EPUB processing workflow using IFormFile content
     /// </summary>
     Task<Result<Domain.Entities.Book>> UpdateBookWithEpubProcessingAsync(
         Domain.Entities.Book existingBook,
         Domain.Entities.FileInfo newFileInfo,
+        Microsoft.AspNetCore.Http.IFormFile originalFile,
         string userId,
         IUnitOfWork unitOfWork,
         IEPubService epubService,
@@ -86,6 +88,11 @@ public interface IBookBusinessLogic
     /// Check if file is EPUB and should be processed
     /// </summary>
     bool ShouldProcessEpub(string fileExtension);
+
+    /// <summary>
+    /// Check if IFormFile is EPUB and should be processed
+    /// </summary>
+    bool ShouldProcessEpub(Microsoft.AspNetCore.Http.IFormFile file);
 
     /// <summary>
     /// Prepare background job data before transaction for book updates
@@ -107,6 +114,17 @@ public interface IBookBusinessLogic
         Microsoft.Extensions.Logging.ILogger logger);
 
     /// <summary>
+    /// Queue EPUB background processing job with file content from IFormFile
+    /// </summary>
+    void QueueEpubProcessingWithFileContent(
+        Guid bookId,
+        string userId,
+        byte[] fileContent,
+        string fileExtension,
+        IEPubService epubService,
+        Microsoft.Extensions.Logging.ILogger logger);
+
+    /// <summary>
     /// Get paged books with filters and enrichment
     /// </summary>
     Task<Result<PaginatedResult<BookResponse>>> GetPagedBooksAsync(
@@ -114,8 +132,6 @@ public interface IBookBusinessLogic
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IFileService fileService);
-
-    
 
     /// <summary>
     /// Get book detail by ID without chapters (lighter response)
@@ -156,4 +172,8 @@ public class BookUpdateJobData
     public string? FilePathToDelete { get; set; }
     public Guid? FileIdToDelete { get; set; }
     public bool ShouldProcessEpub { get; set; }
+    
+    // File content for background processing (avoids re-downloading)
+    public byte[]? FileContent { get; set; }
+    public string? FileExtension { get; set; }
 }
