@@ -42,13 +42,16 @@ public class AuthController : ControllerBase
     /// 
     ///     POST /api/auth/register
     ///     {
+    ///        "first_name": "Nam",
+    ///        "last_name": "Nguyen",
+    ///        "gender": 1,
     ///        "username": "user123",
     ///        "email": "user@example.com",
     ///        "password": "Password123",
     ///        "phone_number": "0123456789"
     ///     }
     /// 
-    /// Mật khẩu phải chứa ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường và số.
+    /// Mật khẩu phải chứa ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường và số. Gender 0 là Female, 1 là Male, 2 là Other
     /// </remarks>
     /// <param name="request">Thông tin đăng ký</param>
     /// <returns>Thông tin tài khoản đã tạo</returns>
@@ -60,7 +63,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(Result), 400)]
     [SwaggerOperation(
         Summary = "Đăng ký tài khoản mới",
-        Description = "API đăng ký tài khoản người dùng mới",
+        Description = "API đăng ký tài khoản nrgười dùng mới",
         OperationId = "User_Register",
         Tags = new[] { "User", "User_Auth" }
     )]

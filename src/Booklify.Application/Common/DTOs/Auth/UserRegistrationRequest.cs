@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Common.DTOs.Auth;
 
@@ -8,6 +9,15 @@ namespace Booklify.Application.Common.DTOs.Auth;
 /// </summary>
 public class UserRegistrationRequest
 {
+    [JsonPropertyName("first_name")]
+    public string? FirstName { get; set; }
+    
+    [JsonPropertyName("last_name")]
+    public string? LastName { get; set; }
+
+    [JsonPropertyName("gender")]
+    public Gender? Gender { get; set; }
+    
     [JsonPropertyName("username")]
     [Required(ErrorMessage = "Username is required")]
     public string Username { get; set; } = string.Empty;

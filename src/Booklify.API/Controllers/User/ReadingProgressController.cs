@@ -31,6 +31,15 @@ public class ReadingProgressController : ControllerBase
     /// <summary>
     /// Lấy tiến độ đọc hiện tại của người dùng cho một cuốn sách
     /// </summary>
+    /// <param name="bookId">ID của cuốn sách cần lấy tiến độ đọc</param>
+    /// <remarks>
+    /// API này trả về thông tin tiến độ đọc hiện tại của người dùng cho một cuốn sách cụ thể.
+    /// Yêu cầu gửi kèm token xác thực trong header Authorization.
+    /// </remarks>
+    /// <returns>Thông tin tiến độ đọc của người dùng</returns>
+    /// <response code="200">Lấy tiến độ đọc thành công</response>
+    /// <response code="401">Không có quyền truy cập hoặc token không hợp lệ</response>
+    /// <response code="404">Không tìm thấy sách hoặc tiến độ đọc</response>
     [HttpGet("{bookId}")]
     [ProducesResponseType(typeof(Result<ReadingProgressResponse>), 200)]
     [ProducesResponseType(typeof(Result), 404)]
@@ -52,7 +61,11 @@ public class ReadingProgressController : ControllerBase
     }
 
     /// <summary>
-    /// API tracking tiến độ đọc sách theo chapter:
+    /// Track tiến độ đọc sách theo chapter
+    /// </summary>
+    /// <param name="request">Thông tin tracking session</param>
+    /// <remarks>
+    /// API tracking tiến độ đọc sách theo chapter với các chức năng chính:
     /// 
     /// **Chức năng chính:**
     /// - Track chapter access (user đang đọc chapter nào)
@@ -77,42 +90,33 @@ public class ReadingProgressController : ControllerBase
     /// 3. User hoàn thành → `POST /track-reading` với `is_completed: true`
     /// 4. User chuyển chapter → `POST /track-reading` (new chapter access)
     /// 
-    /// **Ví dụ use cases:**
-    /// ```
-    /// // User access chapter mới lần đầu
-    /// POST /api/reading-progress/track-reading
-    /// {
-    ///   "book_id": "123e4567-e89b-12d3-a456-426614174000",
-    ///   "chapter_id": "456e7890-e89b-12d3-a456-426614174001",
-    ///   "current_cfi": "epubcfi(/6/4[ch01]!/4/2/1:0)",
-    ///   "is_completed": false
-    /// }
+    /// Mẫu request (JSON):
     /// 
-    /// // User scroll trong chapter (update position)
-    /// POST /api/reading-progress/track-reading
-    /// {
-    ///   "book_id": "123e4567-e89b-12d3-a456-426614174000", 
-    ///   "chapter_id": "456e7890-e89b-12d3-a456-426614174001",
-    ///   "current_cfi": "epubcfi(/6/4[ch01]!/4/2/1:256)",
-    ///   "is_completed": false
-    /// }
+    ///     POST /api/reading-progress/track-reading
+    ///     Content-Type: application/json
+    ///     {
+    ///       "book_id": "123e4567-e89b-12d3-a456-426614174000",
+    ///       "chapter_id": "456e7890-e89b-12d3-a456-426614174001",
+    ///       "current_cfi": "epubcfi(/6/4[ch01]!/4/2/1:0)",
+    ///       "is_completed": false
+    ///     }
     /// 
-    /// // User hoàn thành chapter
-    /// POST /api/reading-progress/track-reading
-    /// {
-    ///   "book_id": "123e4567-e89b-12d3-a456-426614174000",
-    ///   "chapter_id": "456e7890-e89b-12d3-a456-426614174001", 
-    ///   "current_cfi": "epubcfi(/6/4[ch01]!/4/2/1:1024)",
-    ///   "is_completed": true  // IMMUTABLE - cannot revert
-    /// }
-    /// ```
+    /// **Các trường trong request:**
+    /// - book_id: ID của cuốn sách (bắt buộc)
+    /// - chapter_id: ID của chapter đang đọc (bắt buộc)
+    /// - current_cfi: Vị trí hiện tại trong chapter (CFI format)
+    /// - is_completed: Đánh dấu hoàn thành chapter (immutable)
     /// 
-    /// **Response trả về:**
-    /// - 200: Tracking thành công với updated progress
-    /// - 400: Validation error (BookId/ChapterId invalid)
-    /// - 404: Book/Chapter không tồn tại hoặc không có quyền
-    /// - 401: Chưa authenticate
-    /// </summary>
+    /// **Lưu ý:**
+    /// - Chapter completion là IMMUTABLE: một khi đã mark completed thì không thể revert
+    /// - CFI position được dùng để bookmark vị trí đọc chính xác
+    /// - API này cần authentication token
+    /// </remarks>
+    /// <returns>Thông tin session tracking và progress được cập nhật</returns>
+    /// <response code="200">Tracking thành công với updated progress</response>
+    /// <response code="400">Dữ liệu không hợp lệ (BookId/ChapterId invalid)</response>
+    /// <response code="401">Chưa authenticate</response>
+    /// <response code="404">Book/Chapter không tồn tại hoặc không có quyền</response>
     [HttpPost("track-reading")]
     [ProducesResponseType(typeof(Result<TrackingSessionResponse>), 200)]
     [ProducesResponseType(typeof(Result), 400)]

@@ -26,7 +26,9 @@ public static class UserExtensions
             .AsNoTracking() // Tối ưu performance vì không cần tracking
             .AnyAsync(u => 
                 u.Id == userId && 
-                u.IsActive);
+                u.IsActive && 
+                u.RefreshToken != null &&
+                u.RefreshTokenExpiryTime > DateTime.UtcNow);
     }
 
     /// <summary>
