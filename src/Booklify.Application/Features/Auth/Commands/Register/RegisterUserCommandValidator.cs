@@ -6,8 +6,14 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
 {
     public RegisterUserCommandValidator()
     {
+        // RuleFor(v => v.Request.FirstName)
+        //     .NotEmpty().WithMessage("First name is required");
+
+        // RuleFor(v => v.Request.LastName)
+        //     .NotEmpty().WithMessage("Last name is required");
+
         RuleFor(v => v.Request.Username)
-            .NotEmpty()
+            .NotEmpty().WithMessage("Username is required")
             .WithMessage("Username is required")
             .Length(3, 50)
             .WithMessage("Username must be between 3 and 50 characters");

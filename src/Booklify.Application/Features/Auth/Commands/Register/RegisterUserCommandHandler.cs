@@ -10,13 +10,14 @@ using Booklify.Application.Common.Models;
 using Booklify.Domain.Entities;
 using Booklify.Domain.Entities.Identity;
 using Booklify.Domain.Enums;
+using Booklify.Domain.Commons;
 
 namespace Booklify.Application.Features.Auth.Commands.Register;
 
 public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, Result<UserRegistrationResponse>>
 {
     private readonly IIdentityService _identityService;
-    private readonly IBooklifyDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly UserManager<AppUser> _userManager;
     private readonly IEmailService _emailService;
@@ -25,7 +26,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
 
     public RegisterUserCommandHandler(
         IIdentityService identityService, 
-        IBooklifyDbContext context,
+        IUnitOfWork unitOfWork,
         IMapper mapper,
         UserManager<AppUser> userManager,
         IEmailService emailService,
@@ -33,7 +34,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         ILogger<RegisterUserCommandHandler> logger)
     {
         _identityService = identityService;
-        _context = context;
+        _unitOfWork = unitOfWork;
         _mapper = mapper;
         _userManager = userManager;
         _emailService = emailService;
@@ -99,15 +100,17 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
             var userProfile = new UserProfile
             {
                 IdentityUserId = user.Id,
-                FirstName = string.Empty,
-                LastName = string.Empty,
-                FullName = request.Request.Username,
+                FirstName = request.Request.FirstName,
+                LastName = request.Request.LastName,
+                FullName = $"{request.Request.LastName} {request.Request.FirstName}",
                 Phone = request.Request.PhoneNumber,
                 Status = EntityStatus.Active
             };
+
+            BaseEntityExtensions.InitializeBaseEntity(userProfile, user.Id);
             
-            _context.UserProfiles.Add(userProfile);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.UserProfileRepository.AddAsync(userProfile);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
             
             // Update EntityId in Identity User
             await _identityService.UpdateEntityIdAsync(user.Id, userProfile.Id);
