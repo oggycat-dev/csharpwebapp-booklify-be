@@ -35,7 +35,7 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PaginatedResu
             // Map to response DTOs using AutoMapper
             var userResponses = _mapper.Map<List<UserResponse>>(users);
             
-            // Set additional information from IdentityUser for each user
+            // Set additional information from IdentityUser and UserSubscriptions for each user
             foreach (var userResponse in userResponses)
             {
                 var user = users.FirstOrDefault(u => u.Id == userResponse.Id);
@@ -45,6 +45,11 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PaginatedResu
                     userResponse.Email = user.IdentityUser.Email ?? string.Empty;
                     userResponse.IsActive = user.IdentityUser.IsActive;
                 }
+                
+                // Set subscription status
+                var hasActiveSubscription = user?.UserSubscriptions?
+                    .Any(us => us.IsActive && us.EndDate > DateTime.UtcNow) ?? false;
+                userResponse.HasActiveSubscription = hasActiveSubscription;
             }
             
             // Return paginated result

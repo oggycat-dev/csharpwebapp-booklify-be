@@ -14,4 +14,6 @@ public interface IUserProfileRepository : IGenericRepository<UserProfile>
     /// Get user by ID with all related data including subscription and avatar
     /// </summary>
     Task<UserProfile?> GetUserByIdAsync(Guid id);
+    
+
 } 
