@@ -42,7 +42,7 @@ public class CreateSubscriptionCommandHandler : IRequestHandler<CreateSubscripti
             Features = string.Join(";", request.Request.Features), // Store as semicolon-separated string
             IsPopular = request.Request.IsPopular,
             DisplayOrder = request.Request.DisplayOrder,
-            Status = EntityStatus.Active,
+            Status = request.Request.Status,
             CreatedAt = DateTime.UtcNow
         };
 

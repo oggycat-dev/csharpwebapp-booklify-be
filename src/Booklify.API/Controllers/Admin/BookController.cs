@@ -16,6 +16,7 @@ using Booklify.API.Attributes;
 using Swashbuckle.AspNetCore.Annotations;
 using Booklify.Application.Features.Book.Queries.GetBookDetail;
 using Booklify.Application.Features.Book.Queries.GetBookChapters;
+using Booklify.Application.Features.Book.Queries.GetBookStatistics;
 
 namespace Booklify.API.Controllers.Admin;
 
@@ -35,6 +36,46 @@ public class BookController : ControllerBase
     public BookController(IMediator mediator)
     {
         _mediator = mediator;
+    }
+
+    /// <summary>
+    /// Lấy thống kê sách
+    /// </summary>
+    /// <remarks>
+    /// API này trả về thống kê tổng quan về sách trong hệ thống:
+    /// 
+    /// - Số lượng sách theo trạng thái phê duyệt (Pending, Approved, Rejected)
+    /// - Số lượng sách theo trạng thái hoạt động (Active, Inactive)
+    /// - Số lượng sách premium và free
+    /// - Tổng số sách trong hệ thống
+    /// 
+    /// **Quyền hạn:**
+    /// - Admin và Staff đều có quyền truy cập
+    /// </remarks>
+    /// <returns>Thống kê sách</returns>
+    /// <response code="200">Lấy thống kê thành công</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn</response>
+    /// <response code="500">Lỗi server</response>
+    [HttpGet("statistics")]
+    [ProducesResponseType(typeof(Result<BookStatisticsResponse>), 200)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 500)]
+    [SwaggerOperation(
+        Summary = "Lấy thống kê sách",
+        Description = "Lấy thống kê tổng quan về sách trong hệ thống dành cho Admin và Staff.",
+        OperationId = "Admin_GetBookStatistics",
+        Tags = new[] { "Admin", "Admin_Book" }
+    )]
+    public async Task<IActionResult> GetBookStatistics()
+    {
+        var result = await _mediator.Send(new GetBookStatisticsQuery());
+        if (!result.IsSuccess)
+        {
+            return StatusCode(result.GetHttpStatusCode(), result);
+        }
+        return Ok(result);
     }
 
     /// <summary>

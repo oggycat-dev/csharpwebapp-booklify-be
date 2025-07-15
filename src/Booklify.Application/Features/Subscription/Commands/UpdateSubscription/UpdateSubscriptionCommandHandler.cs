@@ -67,6 +67,9 @@ public class UpdateSubscriptionCommandHandler : IRequestHandler<UpdateSubscripti
         if (request.Request.DisplayOrder.HasValue)
             subscription.DisplayOrder = request.Request.DisplayOrder.Value;
 
+        if (request.Request.Status.HasValue)
+            subscription.Status = request.Request.Status.Value;
+
         subscription.ModifiedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);

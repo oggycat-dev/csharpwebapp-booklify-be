@@ -152,6 +152,31 @@ public class BookRepository : GenericRepository<Book>, IBookRepository
         return predicate;
     }
 
+    public async Task<BookStatisticsResponse> GetBookStatisticsAsync()
+    {
+        // Fix concurrency issue: Execute queries sequentially to avoid DbContext conflicts
+        var pendingCount = await CountAsync(b => b.ApprovalStatus == Domain.Enums.ApprovalStatus.Pending);
+        var approvedCount = await CountAsync(b => b.ApprovalStatus == Domain.Enums.ApprovalStatus.Approved);
+        var rejectedCount = await CountAsync(b => b.ApprovalStatus == Domain.Enums.ApprovalStatus.Rejected);
+        var totalCount = await CountAsync(b => true);
+        var activeCount = await CountAsync(b => b.Status == Domain.Enums.EntityStatus.Active);
+        var inactiveCount = await CountAsync(b => b.Status == Domain.Enums.EntityStatus.Inactive);
+        var premiumCount = await CountAsync(b => b.IsPremium == true);
+        var freeCount = await CountAsync(b => b.IsPremium == false);
+
+        return new BookStatisticsResponse
+        {
+            PendingCount = pendingCount,
+            ApprovedCount = approvedCount,
+            RejectedCount = rejectedCount,
+            TotalCount = totalCount,
+            ActiveCount = activeCount,
+            InactiveCount = inactiveCount,
+            PremiumCount = premiumCount,
+            FreeCount = freeCount
+        };
+    }
+
     private Expression<Func<Book, object>> GetOrderByExpression(string? sortBy)
     {
         // Default sort by CreatedAt (newest first) if not specified
