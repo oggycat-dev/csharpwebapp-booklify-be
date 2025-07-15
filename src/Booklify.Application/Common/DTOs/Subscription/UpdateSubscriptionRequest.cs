@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Common.DTOs.Subscription;
 
@@ -33,4 +34,7 @@ public class UpdateSubscriptionRequest
     [JsonPropertyName("display_order")]
     [Range(0, int.MaxValue, ErrorMessage = "Display order must be non-negative")]
     public int? DisplayOrder { get; set; }
+    
+    [JsonPropertyName("status")]
+    public EntityStatus? Status { get; set; }
 } 

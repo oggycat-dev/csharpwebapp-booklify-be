@@ -43,4 +43,7 @@ public class UserResponse
 
     [JsonPropertyName("status_string")]
     public string StatusString { get; set; } = string.Empty;
+
+    [JsonPropertyName("has_active_subscription")]
+    public bool HasActiveSubscription { get; set; }
 }

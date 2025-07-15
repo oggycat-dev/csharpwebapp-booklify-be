@@ -147,7 +147,8 @@ public static class DbInitializer
                             FullName = "Admin Booklify",
                             JoinDate = DateTime.UtcNow,
                             CreatedAt = DateTime.UtcNow,
-                            CreatedBy = adminUser.EntityId.Value
+                            CreatedBy = adminUser.EntityId.Value,
+                            Position = StaffPosition.Administrator,
                         };
                         
                         await dbContext.StaffProfiles.AddAsync(adminProfile);

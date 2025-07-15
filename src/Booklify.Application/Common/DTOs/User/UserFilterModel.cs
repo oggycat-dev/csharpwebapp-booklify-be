@@ -18,6 +18,11 @@ public class UserFilterModel : FilterBase
     /// </summary>
     public bool? IsActive { get; set; }
     
+    /// <summary>
+    /// Lọc theo trạng thái subscription (có subscription active hay không)
+    /// </summary>
+    public bool? HasActiveSubscription { get; set; }
+    
     public UserFilterModel() : base()
     {
     }

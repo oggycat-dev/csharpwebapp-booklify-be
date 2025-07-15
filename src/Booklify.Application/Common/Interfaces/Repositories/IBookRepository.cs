@@ -7,4 +7,9 @@ namespace Booklify.Application.Common.Interfaces.Repositories;
 public interface IBookRepository : IGenericRepository<Book>
 {
     Task<(List<Book> Books, int TotalCount)> GetPagedBooksAsync(BookFilterModel filter);
+    
+    /// <summary>
+    /// Lấy thống kê sách theo các tiêu chí
+    /// </summary>
+    Task<BookStatisticsResponse> GetBookStatisticsAsync();
 }

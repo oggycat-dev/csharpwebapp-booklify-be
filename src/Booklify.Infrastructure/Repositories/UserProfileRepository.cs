@@ -10,8 +10,11 @@ namespace Booklify.Infrastructure.Repositories;
 
 public class UserProfileRepository : GenericRepository<UserProfile>, IUserProfileRepository
 {
+    private readonly BooklifyDbContext _context;
+    
     public UserProfileRepository(BooklifyDbContext context) : base(context)
     {
+        _context = context;
     }
 
     public async Task<(List<UserProfile> Users, int TotalCount)> GetPagedUsersAsync(UserFilterModel filter)
@@ -44,6 +47,8 @@ public class UserProfileRepository : GenericRepository<UserProfile>, IUserProfil
         );
     }
     
+
+    
     private Expression<Func<UserProfile, bool>> BuildFilterPredicate(UserFilterModel filter)
     {
         // Start with basic predicate (active users only)
@@ -69,6 +74,23 @@ public class UserProfileRepository : GenericRepository<UserProfile>, IUserProfil
         if (filter.IsActive.HasValue)
         {
             predicate = predicate.CombineAnd(u => u.IdentityUser != null && u.IdentityUser.IsActive == filter.IsActive.Value);
+        }
+        
+        // Filter by subscription status
+        if (filter.HasActiveSubscription.HasValue)
+        {
+            if (filter.HasActiveSubscription.Value)
+            {
+                // User has active subscription
+                predicate = predicate.CombineAnd(u => u.UserSubscriptions != null && 
+                    u.UserSubscriptions.Any(us => us.IsActive && us.EndDate > DateTime.UtcNow));
+            }
+            else
+            {
+                // User has no active subscription
+                predicate = predicate.CombineAnd(u => u.UserSubscriptions == null || 
+                    !u.UserSubscriptions.Any(us => us.IsActive && us.EndDate > DateTime.UtcNow));
+            }
         }
         
         return predicate;

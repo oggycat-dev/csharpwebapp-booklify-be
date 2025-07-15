@@ -16,7 +16,4 @@ public class UserDetailResponse : UserResponse
 
     [JsonPropertyName("subscription")]
     public UserSubscriptionResponse? Subscription { get; set; }
-
-    [JsonPropertyName("has_active_subscription")]
-    public bool HasActiveSubscription { get; set; }
 } 

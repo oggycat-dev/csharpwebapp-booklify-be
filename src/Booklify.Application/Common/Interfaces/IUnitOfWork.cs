@@ -64,6 +64,21 @@ public interface IUnitOfWork : IDisposable
     IChapterReadingProgressRepository ChapterReadingProgressRepository { get; }
 
     /// <summary>
+    /// The payment repository
+    /// </summary>
+    IPaymentRepository PaymentRepository { get; }
+
+    /// <summary>
+    /// The subscription repository
+    /// </summary>
+    ISubscriptionRepository SubscriptionRepository { get; }
+
+    /// <summary>
+    /// The user subscription repository
+    /// </summary>
+    IUserSubscriptionRepository UserSubscriptionRepository { get; }
+
+    /// <summary>
     /// Begin a transaction
     /// </summary>
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

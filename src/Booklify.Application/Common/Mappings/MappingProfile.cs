@@ -5,6 +5,7 @@ using Booklify.Domain.Entities;
 using Booklify.Application.Common.DTOs.Staff;
 using Booklify.Application.Common.DTOs.BookCategory;
 using Booklify.Application.Common.DTOs.Subscription;
+using Booklify.Application.Common.DTOs.Payment;
 using Booklify.Domain.Enums;
 using Booklify.Application.Common.DTOs.Book;
 using Booklify.Application.Common.DTOs.ChapterNote;
@@ -290,10 +291,30 @@ public class MappingProfile : Profile
         CreateMap<UserSubscription, UserSubscriptionResponse>()
             .ForMember(dest => dest.Subscription, opt => opt.MapFrom(src => src.Subscription));
         
+        // Subscription history mappings
+        CreateMap<UserSubscription, UserSubscriptionHistoryResponse>()
+            .ForMember(dest => dest.SubscriptionName, opt => opt.MapFrom(src => src.Subscription.Name))
+            .ForMember(dest => dest.SubscriptionDescription, opt => opt.MapFrom(src => src.Subscription.Description))
+            .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Subscription.Price))
+            .ForMember(dest => dest.DurationDays, opt => opt.MapFrom(src => src.Subscription.Duration))
+            .ForMember(dest => dest.StatusString, opt => opt.MapFrom(src => src.Status.ToString()));
+        
         // Payment mappings
         CreateMap<Domain.Entities.Payment, PaymentStatusResponse>()
             .ForMember(dest => dest.PaymentId, opt => opt.MapFrom(src => src.Id))
             .ForMember(dest => dest.SubscriptionActivated, opt => opt.Ignore());
+        
+        // Payment history mappings
+        CreateMap<Domain.Entities.Payment, PaymentHistoryResponse>()
+            .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => src.PaymentStatus.ToString()))
+            .ForMember(dest => dest.SubscriptionName, opt => opt.MapFrom(src => 
+                src.UserSubscription != null && src.UserSubscription.Subscription != null 
+                    ? src.UserSubscription.Subscription.Name 
+                    : (string?)null))
+            .ForMember(dest => dest.SubscriptionDuration, opt => opt.MapFrom(src => 
+                src.UserSubscription != null && src.UserSubscription.Subscription != null 
+                    ? (int?)src.UserSubscription.Subscription.Duration 
+                    : (int?)null));
 
         // ChapterNote mappings
         CreateMap<ChapterNote, ChapterNoteListItemResponse>()
@@ -417,10 +438,11 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
             .ForMember(dest => dest.StatusString, opt => opt.MapFrom(src => src.Status.ToString()))
-            // Username, Email, and IsActive will be set manually from IdentityUser
+            // Username, Email, IsActive, and HasActiveSubscription will be set manually from IdentityUser and UserSubscriptions
             .ForMember(dest => dest.Username, opt => opt.Ignore())
             .ForMember(dest => dest.Email, opt => opt.Ignore())
-            .ForMember(dest => dest.IsActive, opt => opt.Ignore());
+            .ForMember(dest => dest.IsActive, opt => opt.Ignore())
+            .ForMember(dest => dest.HasActiveSubscription, opt => opt.Ignore());
 
         CreateMap<UserProfile, Booklify.Application.Common.DTOs.User.UserDetailResponse>()
             .IncludeBase<UserProfile, Booklify.Application.Common.DTOs.User.UserResponse>()

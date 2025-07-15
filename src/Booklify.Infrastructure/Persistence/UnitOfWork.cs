@@ -23,6 +23,9 @@ public class UnitOfWork : IUnitOfWork
     private IChapterNoteRepository _chapterNoteRepository;
     private IReadingProgressRepository _readingProgressRepository;
     private IChapterReadingProgressRepository _chapterReadingProgressRepository;
+    private IPaymentRepository _paymentRepository;
+    private ISubscriptionRepository _subscriptionRepository;
+    private IUserSubscriptionRepository _userSubscriptionRepository;
 
     public UnitOfWork(
         BooklifyDbContext businessContext,
@@ -35,7 +38,10 @@ public class UnitOfWork : IUnitOfWork
         IChapterAIResultRepository chapterAIResultRepository,
         IChapterNoteRepository chapterNoteRepository,
         IReadingProgressRepository readingProgressRepository,
-        IChapterReadingProgressRepository chapterReadingProgressRepository)
+        IChapterReadingProgressRepository chapterReadingProgressRepository,
+        IPaymentRepository paymentRepository,
+        ISubscriptionRepository subscriptionRepository,
+        IUserSubscriptionRepository userSubscriptionRepository)
     {
         _businessContext = businessContext;
         _staffProfileRepository = staffProfileRepository;
@@ -48,6 +54,9 @@ public class UnitOfWork : IUnitOfWork
         _chapterNoteRepository = chapterNoteRepository;
         _readingProgressRepository = readingProgressRepository;
         _chapterReadingProgressRepository = chapterReadingProgressRepository;
+        _paymentRepository = paymentRepository;
+        _subscriptionRepository = subscriptionRepository;
+        _userSubscriptionRepository = userSubscriptionRepository;
     }
 
     public IBooklifyDbContext BusinessContext => _businessContext;
@@ -71,6 +80,12 @@ public class UnitOfWork : IUnitOfWork
     public IReadingProgressRepository ReadingProgressRepository => _readingProgressRepository;
 
     public IChapterReadingProgressRepository ChapterReadingProgressRepository => _chapterReadingProgressRepository;
+
+    public IPaymentRepository PaymentRepository => _paymentRepository;
+
+    public ISubscriptionRepository SubscriptionRepository => _subscriptionRepository;
+
+    public IUserSubscriptionRepository UserSubscriptionRepository => _userSubscriptionRepository;
 
     /// <summary>
     /// Begin a transaction
