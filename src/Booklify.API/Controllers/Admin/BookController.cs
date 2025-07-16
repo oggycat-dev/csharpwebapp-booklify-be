@@ -17,6 +17,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using Booklify.Application.Features.Book.Queries.GetBookDetail;
 using Booklify.Application.Features.Book.Queries.GetBookChapters;
 using Booklify.Application.Features.Book.Queries.GetBookStatistics;
+using Booklify.Application.Features.Book.Commands.ResubmitBook;
 
 namespace Booklify.API.Controllers.Admin;
 
@@ -585,6 +586,72 @@ public class BookController : ControllerBase
     {
         var query = new GetBookChaptersQuery(id);
         var result = await _mediator.Send(query);
+        
+        if (!result.IsSuccess)
+            return StatusCode(result.GetHttpStatusCode(), result);
+            
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Resubmit sách bị từ chối để phê duyệt lại
+    /// </summary>
+    /// <remarks>
+    /// API này cho phép Staff resubmit sách đã bị Admin từ chối để xem xét phê duyệt lại.
+    /// 
+    /// **Quy trình resubmit:**
+    /// 1. Kiểm tra quyền Staff/Admin
+    /// 2. Kiểm tra sách có tồn tại và đang ở trạng thái Rejected không
+    /// 3. Staff chỉ có thể resubmit sách do mình tạo
+    /// 4. Admin có thể resubmit bất kỳ sách nào (để hỗ trợ workflow)
+    /// 5. Chuyển trạng thái từ Rejected về Pending
+    /// 6. Cập nhật approval note với thông tin resubmit
+    /// 
+    /// **Quyền hạn:**
+    /// - Staff: Chỉ được resubmit sách do mình tạo
+    /// - Admin: Có thể resubmit bất kỳ sách nào
+    /// 
+    /// **Điều kiện:**
+    /// - Sách phải đang ở trạng thái "Rejected" (approval_status = 2)
+    /// - Sách sau khi resubmit sẽ chuyển về "Pending" (approval_status = 0)
+    /// 
+    /// Mẫu request:
+    /// 
+    ///     PUT /api/cms/books/{id}/resubmit
+    ///     {
+    ///        "resubmit_note": "Đã chỉnh sửa theo feedback của admin"
+    ///     }
+    ///     
+    /// Lưu ý:
+    /// - resubmit_note là tùy chọn, dùng để giải thích lý do resubmit
+    /// - Sau khi resubmit, admin sẽ thấy sách trong danh sách chờ duyệt
+    /// - Approval note sẽ được đánh dấu với [RESUBMITTED]
+    /// </remarks>
+    /// <param name="id">ID của sách cần resubmit</param>
+    /// <param name="request">Thông tin resubmit (có thể để trống)</param>
+    /// <returns>Thông tin sách đã resubmit</returns>
+    /// <response code="200">Resubmit sách thành công</response>
+    /// <response code="400">Sách không ở trạng thái Rejected hoặc dữ liệu không hợp lệ</response>
+    /// <response code="401">Không có quyền truy cập</response>
+    /// <response code="403">Không đủ quyền hạn hoặc không phải sách của mình</response>
+    /// <response code="404">Không tìm thấy sách</response>
+    [HttpPut("{id}/resubmit")]
+    [Authorize(Roles = "Admin,Staff")] // Both Admin and Staff can resubmit
+    [ProducesResponseType(typeof(Result), 200)]
+    [ProducesResponseType(typeof(Result), 400)]
+    [ProducesResponseType(typeof(Result), 401)]
+    [ProducesResponseType(typeof(Result), 403)]
+    [ProducesResponseType(typeof(Result), 404)]
+    [SwaggerOperation(
+        Summary = "Resubmit sách bị từ chối",
+        Description = "API cho phép Staff resubmit sách bị Admin từ chối để xem xét phê duyệt lại. Staff chỉ được resubmit sách của mình, Admin có thể resubmit bất kỳ sách nào.",
+        OperationId = "Admin_ResubmitBook",
+        Tags = new[] { "Admin", "Admin_Book" }
+    )]
+    public async Task<IActionResult> ResubmitBook([FromRoute] Guid id, [FromBody] ResubmitBookRequest request)
+    {
+        var command = new ResubmitBookCommand(id, request);
+        var result = await _mediator.Send(command);
         
         if (!result.IsSuccess)
             return StatusCode(result.GetHttpStatusCode(), result);
