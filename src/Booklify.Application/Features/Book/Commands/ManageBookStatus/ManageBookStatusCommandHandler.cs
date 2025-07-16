@@ -1,3 +1,4 @@
+using System;
 using AutoMapper;
 using Booklify.Application.Common.DTOs.Book;
 using Booklify.Application.Common.Interfaces;
@@ -81,17 +82,71 @@ public class ManageBookStatusCommandHandler : IRequestHandler<ManageBookStatusCo
                     hasChanges = true;
                 }
 
-                // Update approval status
+                // Update approval status with business logic validation
                 if (request.ApprovalStatus.HasValue && request.ApprovalStatus != existingBook.ApprovalStatus)
                 {
+                    // Validate approval status transition
+                    var validationResult = ValidateApprovalStatusTransition(existingBook.ApprovalStatus, request.ApprovalStatus.Value);
+                    if (!validationResult.IsValid)
+                    {
+                        return Result<BookResponse>.Failure(validationResult.ErrorMessage, ErrorCode.InvalidOperation);
+                    }
+
                     existingBook.ApprovalStatus = request.ApprovalStatus.Value;
                     hasChanges = true;
                 }
 
-                // Update approval note
-                if (!string.IsNullOrEmpty(request.ApprovalNote) && request.ApprovalNote != existingBook.ApprovalNote)
+                // Append approval status changes to existing note (preserve full history)
+                if (request.ApprovalStatus.HasValue)
                 {
-                    existingBook.ApprovalNote = request.ApprovalNote;
+                    if (request.ApprovalStatus.Value == ApprovalStatus.Approved)
+                    {
+                        // Khi approve, luôn append vào lịch sử
+                        var approvedNote = string.IsNullOrEmpty(request.ApprovalNote)
+                            ? $"[APPROVED - {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC]"
+                            : $"[APPROVED - {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC] {request.ApprovalNote}";
+                        
+                        // Append to preserve history
+                        existingBook.ApprovalNote = string.IsNullOrEmpty(existingBook.ApprovalNote) 
+                            ? approvedNote 
+                            : $"{existingBook.ApprovalNote}\n{approvedNote}";
+                        hasChanges = true;
+                    }
+                    else if (request.ApprovalStatus.Value == ApprovalStatus.Rejected)
+                    {
+                        // Khi reject, luôn append timestamp và lý do từ chối vào lịch sử
+                        var rejectionReason = !string.IsNullOrEmpty(request.ApprovalNote) 
+                            ? request.ApprovalNote 
+                            : "Sách bị từ chối";
+                        var rejectedNote = $"[REJECTED - {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC] {rejectionReason}";
+                        
+                        // Append to preserve history
+                        existingBook.ApprovalNote = string.IsNullOrEmpty(existingBook.ApprovalNote) 
+                            ? rejectedNote 
+                            : $"{existingBook.ApprovalNote}\n{rejectedNote}";
+                        hasChanges = true;
+                    }
+                    else if (request.ApprovalStatus.Value == ApprovalStatus.Pending)
+                    {
+                        // Khi chuyển về Pending (nếu có), cũng nên ghi lại lịch sử
+                        if (!string.IsNullOrEmpty(request.ApprovalNote))
+                        {
+                            var pendingNote = $"[PENDING - {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC] {request.ApprovalNote}";
+                            existingBook.ApprovalNote = string.IsNullOrEmpty(existingBook.ApprovalNote) 
+                                ? pendingNote 
+                                : $"{existingBook.ApprovalNote}\n{pendingNote}";
+                            hasChanges = true;
+                        }
+                    }
+                }
+                else if (!string.IsNullOrEmpty(request.ApprovalNote))
+                {
+                    // Trường hợp chỉ cập nhật approval note mà không thay đổi approval status
+                    // Append general note với timestamp
+                    var generalNote = $"[NOTE - {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC] {request.ApprovalNote}";
+                    existingBook.ApprovalNote = string.IsNullOrEmpty(existingBook.ApprovalNote) 
+                        ? generalNote 
+                        : $"{existingBook.ApprovalNote}\n{generalNote}";
                     hasChanges = true;
                 }
 
@@ -134,5 +189,76 @@ public class ManageBookStatusCommandHandler : IRequestHandler<ManageBookStatusCo
             _logger.LogError(ex, "Error managing book status for book ID: {BookId}", command.BookId);
             return Result<BookResponse>.Failure("Lỗi khi cập nhật trạng thái sách", ErrorCode.InternalError);
         }
+    }
+
+    /// <summary>
+    /// Validates approval status transition according to business rules
+    /// </summary>
+    private static (bool IsValid, string ErrorMessage) ValidateApprovalStatusTransition(ApprovalStatus currentStatus, ApprovalStatus newStatus)
+    {
+        // If status is not changing, it's valid
+        if (currentStatus == newStatus)
+        {
+            return (true, string.Empty);
+        }
+
+        // Business rules for approval status transitions:
+        // 1. From Pending (0) -> can go to Approved (1) or Rejected (2)
+        // 2. From Approved (1) -> can only go to Rejected (2)
+        // 3. From Rejected (2) -> can only go to Approved (1)
+        // 4. Cannot go back to Pending (0) once approved or rejected
+
+        switch (currentStatus)
+        {
+            case ApprovalStatus.Pending:
+                // From Pending, can go to Approved or Rejected
+                if (newStatus == ApprovalStatus.Approved || newStatus == ApprovalStatus.Rejected)
+                {
+                    return (true, string.Empty);
+                }
+                break;
+
+            case ApprovalStatus.Approved:
+                // From Approved, can only go to Rejected
+                if (newStatus == ApprovalStatus.Rejected)
+                {
+                    return (true, string.Empty);
+                }
+                // Cannot go back to Pending
+                if (newStatus == ApprovalStatus.Pending)
+                {
+                    return (false, "Không thể chuyển từ 'Đã duyệt' về 'Chờ duyệt'. Sách đã được xử lý không thể quay về trạng thái chờ duyệt.");
+                }
+                break;
+
+            case ApprovalStatus.Rejected:
+                // From Rejected, can only go to Approved
+                if (newStatus == ApprovalStatus.Approved)
+                {
+                    return (true, string.Empty);
+                }
+                // Cannot go back to Pending
+                if (newStatus == ApprovalStatus.Pending)
+                {
+                    return (false, "Không thể chuyển từ 'Từ chối' về 'Chờ duyệt'. Sách bị từ chối không thể quay về trạng thái chờ duyệt.");
+                }
+                break;
+        }
+
+        return (false, $"Không thể chuyển từ '{GetApprovalStatusText(currentStatus)}' sang '{GetApprovalStatusText(newStatus)}'.");
+    }
+
+    /// <summary>
+    /// Get human-readable text for approval status
+    /// </summary>
+    private static string GetApprovalStatusText(ApprovalStatus status)
+    {
+        return status switch
+        {
+            ApprovalStatus.Pending => "Chờ duyệt",
+            ApprovalStatus.Approved => "Đã duyệt",
+            ApprovalStatus.Rejected => "Từ chối",
+            _ => "Không xác định"
+        };
     }
 } 
