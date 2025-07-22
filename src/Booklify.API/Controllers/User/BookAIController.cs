@@ -42,26 +42,27 @@ public class BookAIController : ControllerBase
     /// **Ví dụ request body:**
     /// ```json
     /// {
-    ///   "actions": ["summary", "keywords", "flashcards"]
+    ///   "actions": ["summary", "keywords", "flashcards"],
+    ///   "content": "This is the chapter content to be processed by AI..."
     /// }
     /// ```
     /// 
     /// **Lưu ý:**
     /// - Có thể chọn một hoặc nhiều hành động
+    /// - Cần gửi kèm nội dung chương trong trường `content`
     /// - Kết quả được trả về ngay lập tức (không qua background job)
-    /// - Chỉ xử lý các chương của sách EPUB
     /// - Cần có quyền truy cập vào sách
     /// </remarks>
     /// <param name="bookId">ID của sách</param>
-    /// <param name="chapterIndex">Thứ tự chương (bắt đầu từ 0)</param>
-    /// <param name="request">Danh sách các hành động AI cần thực hiện</param>
+    /// <param name="chapterId">ID của chương cần xử lý</param>
+    /// <param name="request">Danh sách các hành động AI cần thực hiện và nội dung chương</param>
     /// <returns>Kết quả xử lý AI cho chương</returns>
     /// <response code="200">Xử lý AI thành công</response>
     /// <response code="400">Dữ liệu đầu vào không hợp lệ</response>
     /// <response code="401">Chưa đăng nhập</response>
     /// <response code="404">Không tìm thấy sách hoặc chương</response>
     /// <response code="500">Lỗi server hoặc lỗi từ Gemini API</response>
-    [HttpPost("{bookId}/chapters/{chapterIndex}/process-ai")]
+    [HttpPost("{bookId}/chapters/{chapterId}/process-ai")]
     [ProducesResponseType(typeof(Result<ChapterAIResponse>), 200)]
     [ProducesResponseType(typeof(Result), 400)]
     [ProducesResponseType(typeof(Result), 401)]
@@ -75,10 +76,10 @@ public class BookAIController : ControllerBase
     )]
     public async Task<IActionResult> ProcessChapterAI(
         [FromRoute] Guid bookId,
-        [FromRoute] int chapterIndex,
+        [FromRoute] Guid chapterId,
         [FromBody] ChapterAIRequest request)
     {
-        var command = new ProcessChapterAICommand(bookId, chapterIndex, request.Actions);
+        var command = new ProcessChapterAICommand(bookId, chapterId, request.Content, request.Actions);
         var result = await _mediator.Send(command);
 
         if (!result.IsSuccess)
@@ -92,7 +93,7 @@ public class BookAIController : ControllerBase
     /// </summary>
     /// <remarks>
     /// API để lấy danh sách tất cả các chương của một sách, 
-    /// giúp người dùng biết được chỉ số chương để sử dụng trong API xử lý AI.
+    /// giúp người dùng biết được ID chương để sử dụng trong API xử lý AI.
     /// </remarks>
     /// <param name="bookId">ID của sách</param>
     /// <returns>Danh sách các chương với thông tin cơ bản</returns>

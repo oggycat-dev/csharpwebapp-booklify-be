@@ -26,10 +26,12 @@ namespace Booklify.API.Controllers.User;
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IConfiguration _configuration;
     
-    public AuthController(IMediator mediator)
+    public AuthController(IMediator mediator, IConfiguration configuration)
     {
         _mediator = mediator;
+        _configuration = configuration;
     }
     
     /// <summary>
@@ -250,7 +252,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(Result), 404)]
     [SwaggerOperation(
         Summary = "Xác thực email",
-        Description = "API xác thực email thông qua token",
+        Description = "API xác thực email thông qua token và hiển thị trang xác thực thành công",
         OperationId = "User_ConfirmEmail",
         Tags = new[] { "User", "User_Auth" }
     )]
@@ -259,10 +261,18 @@ public class AuthController : ControllerBase
         var command = new ConfirmEmailCommand(email, token);
         var result = await _mediator.Send(command);
         
+        // Get frontend URL for redirect
+        var frontendUrl = GetFrontendUrl();
+        var loginUrl = $"{frontendUrl}/login";
+        
         if (!result.IsSuccess)
-            return StatusCode(result.GetHttpStatusCode(), result);
-            
-        return Ok(result);
+        {
+            var errorHtml = GenerateErrorPage(result.Message, loginUrl);
+            return Content(errorHtml, "text/html");
+        }
+        
+        var successHtml = GenerateSuccessPage(loginUrl);
+        return Content(successHtml, "text/html");
     }
 
     /// <summary>
@@ -304,6 +314,388 @@ public class AuthController : ControllerBase
             
         return Ok(result);
     }
+    
+    #region Private Helper Methods
+    
+    /// <summary>
+    /// Get frontend URL from configuration
+    /// </summary>
+    private string GetFrontendUrl()
+    {
+        var frontendUrl = _configuration["FrontendUrl"];
+        
+        if (string.IsNullOrEmpty(frontendUrl))
+        {
+            return "http://localhost:3000"; // Default fallback
+        }
+        
+        // Get first URL if multiple URLs are configured
+        var urls = frontendUrl.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        return urls[0].Trim();
+    }
+    
+    /// <summary>
+    /// Generate success page HTML with orange theme
+    /// </summary>
+    private string GenerateSuccessPage(string loginUrl)
+    {
+        return $@"
+<!DOCTYPE html>
+<html lang='vi'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Xác thực thành công - Booklify</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }}
+        
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(255, 149, 0, 0.3);
+            padding: 50px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .container::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #ff9500, #ff6b00, #ff9500);
+        }}
+        
+        .success-icon {{
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: bounce 0.6s ease-out;
+        }}
+        
+        .success-icon::after {{
+            content: '✓';
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }}
+        
+        h1 {{
+            color: #ff6b00;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }}
+        
+        .message {{
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }}
+        
+        .redirect-info {{
+            background: #fff5f0;
+            border: 2px solid #ff9500;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+        }}
+        
+        .redirect-text {{
+            color: #ff6b00;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }}
+        
+        .countdown {{
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff6b00;
+            margin: 10px 0;
+        }}
+        
+        .login-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4);
+        }}
+        
+        .login-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 149, 0, 0.6);
+        }}
+        
+        .bookify-logo {{
+            color: #ff6b00;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+        
+        @keyframes bounce {{
+            0%, 20%, 50%, 80%, 100% {{ transform: translateY(0); }}
+            40% {{ transform: translateY(-10px); }}
+            60% {{ transform: translateY(-5px); }}
+        }}
+        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        .container > * {{
+            animation: fadeIn 0.6s ease-out forwards;
+        }}
+        
+        .container > *:nth-child(2) {{ animation-delay: 0.1s; }}
+        .container > *:nth-child(3) {{ animation-delay: 0.2s; }}
+        .container > *:nth-child(4) {{ animation-delay: 0.3s; }}
+        .container > *:nth-child(5) {{ animation-delay: 0.4s; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='bookify-logo'>
+            📚 Booklify
+        </div>
+        
+        <div class='success-icon'></div>
+        
+        <h1>🎉 Xác thực thành công!</h1>
+        
+        <p class='message'>
+            Chúc mừng! Tài khoản của bạn đã được xác thực thành công.<br>
+            Bạn có thể bắt đầu khám phá thế giới sách tuyệt vời trên Booklify.
+        </p>
+        
+        <div class='redirect-info'>
+            <div class='redirect-text'>Tự động chuyển hướng trong:</div>
+            <div class='countdown' id='countdown'>3</div>
+            <div style='color: #888; font-size: 0.9em;'>giây</div>
+        </div>
+        
+        <a href='{loginUrl}' class='login-button'>
+            🚀 Đi đến trang đăng nhập
+        </a>
+    </div>
+
+    <script>
+        let countdown = 3;
+        const countdownElement = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {{
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {{
+                clearInterval(timer);
+                window.location.href = '{loginUrl}';
+            }}
+        }}, 1000);
+        
+        // Allow manual navigation
+        document.addEventListener('click', function(e) {{
+            if (e.target.classList.contains('login-button')) {{
+                clearInterval(timer);
+            }}
+        }});
+    </script>
+</body>
+</html>";
+    }
+    
+    /// <summary>
+    /// Generate error page HTML with orange theme
+    /// </summary>
+    private string GenerateErrorPage(string errorMessage, string loginUrl)
+    {
+        return $@"
+<!DOCTYPE html>
+<html lang='vi'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Lỗi xác thực - Booklify</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }}
+        
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(255, 149, 0, 0.3);
+            padding: 50px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .container::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #ff6b00, #ff4444, #ff6b00);
+        }}
+        
+        .error-icon {{
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ff4444, #cc3333);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }}
+        
+        .error-icon::after {{
+            content: '✗';
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }}
+        
+        h1 {{
+            color: #ff4444;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }}
+        
+        .message {{
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }}
+        
+        .error-details {{
+            background: #fff5f5;
+            border: 2px solid #ff4444;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #cc3333;
+        }}
+        
+        .login-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4);
+            margin-top: 20px;
+        }}
+        
+        .login-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 149, 0, 0.6);
+        }}
+        
+        .bookify-logo {{
+            color: #ff6b00;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='bookify-logo'>
+            📚 Booklify
+        </div>
+        
+        <div class='error-icon'></div>
+        
+        <h1>❌ Xác thực thất bại</h1>
+        
+        <p class='message'>
+            Rất tiếc, quá trình xác thực tài khoản không thành công.
+        </p>
+        
+        <div class='error-details'>
+            <strong>Lỗi:</strong> {errorMessage}
+        </div>
+        
+        <p class='message'>
+            Vui lòng thử lại hoặc liên hệ với chúng tôi để được hỗ trợ.
+        </p>
+        
+        <a href='{loginUrl}' class='login-button'>
+            🏠 Về trang đăng nhập
+        </a>
+    </div>
+</body>
+</html>";
+    }
+    
+    #endregion
 }
 
 /// <summary>
