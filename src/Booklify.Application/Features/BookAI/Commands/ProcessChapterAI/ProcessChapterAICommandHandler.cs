@@ -14,20 +14,17 @@ namespace Booklify.Application.Features.BookAI.Commands.ProcessChapterAI;
 public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICommand, Result<ChapterAIResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IStorageService _storageService;
     private readonly ITextAIService _aiService;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<ProcessChapterAICommandHandler> _logger;
 
     public ProcessChapterAICommandHandler(
         IUnitOfWork unitOfWork,
-        IStorageService storageService,
         ITextAIService aiService,
         ICurrentUserService currentUserService,
         ILogger<ProcessChapterAICommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
-        _storageService = storageService;
         _aiService = aiService;
         _currentUserService = currentUserService;
         _logger = logger;
@@ -42,9 +39,7 @@ public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICo
         {
             // 1. Get book and validate
             var book = await _unitOfWork.BookRepository.GetFirstOrDefaultAsync(
-                b => b.Id == request.BookId && !b.IsDeleted,
-                b => b.File,
-                b => b.Chapters
+                b => b.Id == request.BookId && !b.IsDeleted
             );
 
             if (book == null)
@@ -52,34 +47,21 @@ public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICo
                 return Result<ChapterAIResponse>.Failure("Book not found", ErrorCode.NotFound);
             }
 
-            if (book.File == null)
+            // 2. Get chapter by ID and validate
+            var chapter = await _unitOfWork.ChapterRepository.GetFirstOrDefaultAsync(
+                c => c.Id == request.ChapterId && c.BookId == request.BookId && !c.IsDeleted
+            );
+
+            if (chapter == null)
             {
-                return Result<ChapterAIResponse>.Failure("Book file not found", ErrorCode.NotFound);
+                return Result<ChapterAIResponse>.Failure("Chapter not found", ErrorCode.NotFound);
             }
 
-            // 2. Get chapter by index
-            var chapters = book.Chapters?
-                .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Order)
-                .ToList();
-
-            if (chapters == null || !chapters.Any())
-            {
-                return Result<ChapterAIResponse>.Failure("No chapters found for this book", ErrorCode.NotFound);
-            }
-
-            if (request.ChapterIndex >= chapters.Count)
-            {
-                return Result<ChapterAIResponse>.Failure($"Chapter index {request.ChapterIndex} is out of range. Book has {chapters.Count} chapters.", ErrorCode.InvalidInput);
-            }
-
-            var chapter = chapters[request.ChapterIndex];
-
-            // 3. Extract chapter content
-            var content = await ExtractChapterContent(book, chapter);
+            // 3. Use content from client
+            var content = request.Content;
             if (string.IsNullOrWhiteSpace(content))
             {
-                return Result<ChapterAIResponse>.Failure("Could not extract chapter content", ErrorCode.InvalidInput);
+                return Result<ChapterAIResponse>.Failure("Chapter content is required", ErrorCode.InvalidInput);
             }
 
             // 4. Process AI actions
@@ -90,7 +72,8 @@ public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICo
 
             var processedActions = new List<string>();
 
-            _logger.LogInformation("Processing {ActionCount} actions: {Actions}", request.Actions.Count, string.Join(", ", request.Actions));
+            _logger.LogInformation("Processing {ActionCount} actions: {Actions} for chapter {ChapterId}", 
+                request.Actions.Count, string.Join(", ", request.Actions), request.ChapterId);
 
             foreach (var action in request.Actions.Select(a => a.ToLower()).Distinct())
             {
@@ -167,66 +150,9 @@ public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICo
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing AI for chapter {ChapterIndex} in book {BookId}", request.ChapterIndex, request.BookId);
+            _logger.LogError(ex, "Error processing AI for chapter {ChapterId} in book {BookId}", request.ChapterId, request.BookId);
             return Result<ChapterAIResponse>.Failure("Failed to process AI for chapter", ErrorCode.InternalError);
         }
-    }
-
-    private async Task<string> ExtractChapterContent(Domain.Entities.Book book, Chapter chapter)
-    {
-        try
-        {
-            // Download EPUB file
-            var fileStream = await _storageService.DownloadFileAsync(book.File!.FilePath);
-            if (fileStream == null)
-            {
-                return string.Empty;
-            }
-
-            byte[] fileContent;
-            using (var memoryStream = new MemoryStream())
-            {
-                await fileStream.CopyToAsync(memoryStream);
-                fileContent = memoryStream.ToArray();
-            }
-
-            var tempFilePath = await CreateTempFileFromContent(fileContent, book.File.Extension);
-            try
-            {
-                // For now, return sample content since we removed VersOne.Epub dependency
-                // In a real implementation, you would use an EPUB reader library
-                var sampleContent = $"Chapter content for: {chapter.Title}\n\nThis is sample content that would be extracted from the EPUB file. In a real implementation, you would use a library like VersOne.Epub to extract the actual chapter content from the EPUB file.";
-                
-                // Limit content length for API calls
-                const int maxContentLength = 4000;
-                if (sampleContent.Length > maxContentLength)
-                {
-                    sampleContent = sampleContent.Substring(0, maxContentLength) + "...";
-                }
-                
-                return sampleContent;
-            }
-            finally
-            {
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error extracting content for chapter {ChapterId}", chapter.Id);
-            return string.Empty;
-        }
-    }
-
-    private async Task<string> CreateTempFileFromContent(byte[] content, string extension)
-    {
-        var tempFilePath = Path.GetTempFileName();
-        tempFilePath = Path.ChangeExtension(tempFilePath, extension);
-        await File.WriteAllBytesAsync(tempFilePath, content);
-        return tempFilePath;
     }
 
     private async Task SaveChapterAIResult(Guid chapterId, ChapterAIResponse response, List<string> processedActions, string userId)
@@ -261,7 +187,7 @@ public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICo
             }
 
             chapterAIResult.ProcessedActions = string.Join(",", processedActions);
-            chapterAIResult.AIModel = "gemini-pro";
+            chapterAIResult.AIModel = "gemini-1.5-flash";
 
             if (existingResult == null)
             {

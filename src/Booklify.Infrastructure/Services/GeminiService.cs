@@ -120,15 +120,15 @@ public class GeminiService : ITextAIService
 
     public async Task<string> SummarizeAsync(string chapterText)
     {
-        var prompt = $@"Hãy tóm tắt nội dung chương sau bằng tiếng Việt một cách ngắn gọn và dễ hiểu:
+        var prompt = $@"Please summarize the following chapter content in English in a concise and easy-to-understand manner:
 
 {chapterText}
 
-Yêu cầu:
-- Tóm tắt bằng tiếng Việt
-- Độ dài khoảng 3-5 câu
-- Tập trung vào ý chính và các điểm quan trọng
-- Viết một cách dễ hiểu và thú vị";
+Requirements:
+- Summarize in English
+- Length should be around 3-5 sentences
+- Focus on main ideas and important points
+- Write in a clear and engaging way";
 
         return await GenerateAsync(prompt);
     }

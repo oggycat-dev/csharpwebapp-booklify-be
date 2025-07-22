@@ -12,9 +12,15 @@ public class ProcessChapterAICommandValidator : AbstractValidator<ProcessChapter
             .NotEmpty()
             .WithMessage("Book ID is required");
             
-        RuleFor(x => x.ChapterIndex)
-            .GreaterThanOrEqualTo(0)
-            .WithMessage("Chapter index must be 0 or greater");
+        RuleFor(x => x.ChapterId)
+            .NotEmpty()
+            .WithMessage("Chapter ID is required");
+            
+        RuleFor(x => x.Content)
+            .NotEmpty()
+            .WithMessage("Chapter content is required")
+            .MinimumLength(10)
+            .WithMessage("Chapter content must be at least 10 characters long");
             
         RuleFor(x => x.Actions)
             .NotEmpty()
