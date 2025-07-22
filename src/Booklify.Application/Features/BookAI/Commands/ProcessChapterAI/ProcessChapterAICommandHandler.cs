@@ -8,6 +8,9 @@ using Booklify.Application.Common.Models;
 using Booklify.Application.Common.DTOs.BookAI;
 using Booklify.Domain.Entities;
 using Booklify.Domain.Commons;
+using System.Runtime.CompilerServices;
+using System.ComponentModel.Design;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Features.BookAI.Commands.ProcessChapterAI;
 
@@ -37,6 +40,22 @@ public class ProcessChapterAICommandHandler : IRequestHandler<ProcessChapterAICo
         
         try
         {
+            // 0. Check if user is subscribed
+            var userProfile = await _unitOfWork.UserProfileRepository.GetFirstOrDefaultAsync(c => c.IdentityUserId == userId);
+
+            if (userProfile == null)
+            {
+                return Result<ChapterAIResponse>.Failure("User not found", ErrorCode.Unauthorized);
+            }
+
+            var isSubscribed = await _unitOfWork.UserSubscriptionRepository.AnyAsync(c => c.UserId == userProfile.Id && 
+            c.Status == EntityStatus.Active && c.EndDate > DateTime.UtcNow);
+
+            if (!isSubscribed)
+            {
+                return Result<ChapterAIResponse>.Failure("User is not subscribed", ErrorCode.ValidationFailed);
+            }
+
             // 1. Get book and validate
             var book = await _unitOfWork.BookRepository.GetFirstOrDefaultAsync(
                 b => b.Id == request.BookId && !b.IsDeleted

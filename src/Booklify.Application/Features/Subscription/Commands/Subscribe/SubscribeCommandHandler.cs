@@ -12,17 +12,20 @@ namespace Booklify.Application.Features.Subscription.Commands.Subscribe;
 public class SubscribeCommandHandler : IRequestHandler<SubscribeCommand, Result<SubscribeResponse>>
 {
     private readonly IBooklifyDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IVNPayService _vnPayService;
     private readonly IMapper _mapper;
 
     public SubscribeCommandHandler(
         IBooklifyDbContext context,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IVNPayService vnPayService,
         IMapper mapper)
     {
         _context = context;
+        _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _vnPayService = vnPayService;
         _mapper = mapper;

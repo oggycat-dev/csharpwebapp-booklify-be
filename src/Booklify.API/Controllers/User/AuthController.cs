@@ -263,7 +263,7 @@ public class AuthController : ControllerBase
         
         // Get frontend URL for redirect
         var frontendUrl = GetFrontendUrl();
-        var loginUrl = $"{frontendUrl}/login";
+        var loginUrl = $"{frontendUrl}/";
         
         if (!result.IsSuccess)
         {
