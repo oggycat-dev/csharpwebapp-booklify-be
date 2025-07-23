@@ -39,19 +39,14 @@ public class UserSubscription : BaseEntity
     public DateTime EndDate { get; set; }
     
     /// <summary>
-    /// Whether the subscription is currently active
-    /// </summary>
-    public bool IsActive { get; set; }
-    
-    /// <summary>
     /// Auto-renewal setting
     /// </summary>
     public bool AutoRenew { get; set; }
     
     /// <summary>
-    /// Subscription status
+    /// Subscription status (Pending, Active, Expired, Inactive)
     /// </summary>
-    public EntityStatus Status { get; set; } = EntityStatus.Active;
+    public EntityStatus Status { get; set; } = EntityStatus.Pending;
     
     /// <summary>
     /// Navigation property to payments for this subscription

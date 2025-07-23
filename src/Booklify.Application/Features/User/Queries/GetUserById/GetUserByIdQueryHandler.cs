@@ -4,6 +4,7 @@ using AutoMapper;
 using Booklify.Application.Common.DTOs.User;
 using Booklify.Application.Common.Models;
 using Booklify.Application.Common.Interfaces;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Features.User.Queries.GetUserById;
 
@@ -55,15 +56,17 @@ public class GetUserByIdQueryHandler : IRequestHandler<GetUserByIdQuery, Result<
                 userDetailResponse.IsActive = user.IdentityUser.IsActive;
             }
             
-            // Find current active subscription
+            // Get current active subscription with details
             var activeSubscription = user.UserSubscriptions?
-                .Where(us => us.IsActive && us.EndDate > DateTime.UtcNow)
-                .OrderByDescending(us => us.EndDate)
+                .Where(us => us.Status == EntityStatus.Active && us.EndDate > DateTime.UtcNow)
+                .OrderByDescending(us => us.CreatedAt)
                 .FirstOrDefault();
             
             if (activeSubscription != null)
             {
                 userDetailResponse.Subscription = _mapper.Map<Booklify.Application.Common.DTOs.Subscription.UserSubscriptionResponse>(activeSubscription);
+                // Remove payments loading - should be queried separately for better performance
+                // userDetailResponse.Subscription.Payments = _mapper.Map<List<Booklify.Application.Common.DTOs.Payment.PaymentHistoryResponse>>(activeSubscription.Payments);
                 userDetailResponse.HasActiveSubscription = true;
             }
             else

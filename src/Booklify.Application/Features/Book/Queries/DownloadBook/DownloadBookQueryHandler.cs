@@ -172,8 +172,7 @@ public class DownloadBookQueryHandler : IRequestHandler<DownloadBookQuery, Resul
 
             // Kiểm tra có subscription active không
             var activeSubscription = userProfile.UserSubscriptions
-                .FirstOrDefault(s => s.IsActive && 
-                               s.Status == Domain.Enums.EntityStatus.Active &&
+                .FirstOrDefault(s => s.Status == Domain.Enums.EntityStatus.Active &&
                                s.StartDate <= DateTime.UtcNow && 
                                s.EndDate >= DateTime.UtcNow);
 

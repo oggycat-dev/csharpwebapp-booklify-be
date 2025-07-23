@@ -29,8 +29,8 @@ public class DeleteSubscriptionCommandHandler : IRequestHandler<DeleteSubscripti
         // Check if subscription has active user subscriptions
         var hasActiveSubscriptions = await _context.UserSubscriptions
             .AnyAsync(us => us.SubscriptionId == request.Id && 
-                          us.IsActive && 
-                          us.Status == EntityStatus.Active, cancellationToken);
+                          us.Status == EntityStatus.Active && 
+                          us.EndDate > DateTime.UtcNow, cancellationToken);
 
         if (hasActiveSubscriptions)
         {

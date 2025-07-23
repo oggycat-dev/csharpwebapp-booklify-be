@@ -42,10 +42,28 @@ public class GetMySubscriptionsQueryHandler : IRequestHandler<GetMySubscriptions
             return Result<List<UserSubscriptionResponse>>.Failure("User profile not found", ErrorCode.UserNotFound);
         }
 
+        // Update expired subscriptions automatically
+        var expiredSubscriptions = await _context.UserSubscriptions
+            .Where(us => us.UserId == userProfile.Id &&
+                        us.Status == EntityStatus.Active &&
+                        us.EndDate <= DateTime.UtcNow)
+            .ToListAsync(cancellationToken);
+
+        foreach (var expiredSub in expiredSubscriptions)
+        {
+            expiredSub.Status = EntityStatus.Expired;
+        }
+
+        if (expiredSubscriptions.Any())
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
         // Get user subscriptions with related data
         var userSubscriptions = await _context.UserSubscriptions
             .Include(us => us.Subscription)
-            .Where(us => us.UserId == userProfile.Id && us.Status == EntityStatus.Active)
+            .Include(us => us.Payments)
+            .Where(us => us.UserId == userProfile.Id)
             .OrderByDescending(us => us.CreatedAt)
             .ToListAsync(cancellationToken);
 

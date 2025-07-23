@@ -5,6 +5,7 @@ using Booklify.Application.Common.DTOs.User;
 using Booklify.Infrastructure.Repositories.Extensions;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Infrastructure.Repositories;
 
@@ -83,13 +84,13 @@ public class UserProfileRepository : GenericRepository<UserProfile>, IUserProfil
             {
                 // User has active subscription
                 predicate = predicate.CombineAnd(u => u.UserSubscriptions != null && 
-                    u.UserSubscriptions.Any(us => us.IsActive && us.EndDate > DateTime.UtcNow));
+                    u.UserSubscriptions.Any(us => us.Status == EntityStatus.Active && us.EndDate > DateTime.UtcNow));
             }
             else
             {
                 // User has no active subscription
                 predicate = predicate.CombineAnd(u => u.UserSubscriptions == null || 
-                    !u.UserSubscriptions.Any(us => us.IsActive && us.EndDate > DateTime.UtcNow));
+                    !u.UserSubscriptions.Any(us => us.Status == EntityStatus.Active && us.EndDate > DateTime.UtcNow));
             }
         }
         

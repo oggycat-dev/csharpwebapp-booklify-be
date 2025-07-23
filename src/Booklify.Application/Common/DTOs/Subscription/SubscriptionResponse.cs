@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Booklify.Domain.Enums;
+using Booklify.Application.Common.DTOs.Payment;
 
 namespace Booklify.Application.Common.DTOs.Subscription;
 
@@ -50,8 +51,11 @@ public class UserSubscriptionResponse
     [JsonPropertyName("user_id")]
     public Guid UserId { get; set; }
     
-    [JsonPropertyName("subscription")]
-    public SubscriptionResponse Subscription { get; set; } = new();
+    [JsonPropertyName("subscription_id")]
+    public Guid SubscriptionId { get; set; }
+    
+    [JsonPropertyName("subscription_name")]
+    public string SubscriptionName { get; set; } = string.Empty;
     
     [JsonPropertyName("start_date")]
     public DateTime StartDate { get; set; }
@@ -59,14 +63,21 @@ public class UserSubscriptionResponse
     [JsonPropertyName("end_date")]
     public DateTime EndDate { get; set; }
     
-    [JsonPropertyName("is_active")]
-    public bool IsActive { get; set; }
-    
     [JsonPropertyName("auto_renew")]
     public bool AutoRenew { get; set; }
     
     [JsonPropertyName("status")]
     public EntityStatus Status { get; set; }
+    
+    [JsonPropertyName("status_text")]
+    public string StatusText => Status switch
+    {
+        EntityStatus.Active => "Active",
+        EntityStatus.Pending => "Pending",
+        EntityStatus.Expired => "Expired",
+        EntityStatus.Inactive => "Inactive",
+        _ => "Unknown"
+    };
     
     [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }

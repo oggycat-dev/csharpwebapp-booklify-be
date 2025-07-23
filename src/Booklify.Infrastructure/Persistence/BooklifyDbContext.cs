@@ -359,11 +359,11 @@ public class BooklifyDbContext : DbContext, IBooklifyDbContext
             // Add indexes for performance
             entity.HasIndex(us => us.UserId);
             entity.HasIndex(us => us.SubscriptionId);
-            entity.HasIndex(us => us.IsActive);
+            entity.HasIndex(us => us.Status);
             entity.HasIndex(us => new { us.StartDate, us.EndDate });
             
             // Composite index for common queries
-            entity.HasIndex(us => new { us.UserId, us.IsActive, us.Status });
+            entity.HasIndex(us => new { us.UserId, us.Status, us.EndDate });
         });
 
         // Configure Payment

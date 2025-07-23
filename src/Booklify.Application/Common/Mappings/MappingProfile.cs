@@ -289,7 +289,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Features, opt => opt.MapFrom(src => 
                 string.IsNullOrEmpty(src.Features) ? new List<string>() : src.Features.Split(';', StringSplitOptions.RemoveEmptyEntries).ToList()));
         CreateMap<UserSubscription, UserSubscriptionResponse>()
-            .ForMember(dest => dest.Subscription, opt => opt.MapFrom(src => src.Subscription));
+            .ForMember(dest => dest.SubscriptionName, opt => opt.MapFrom(src => src.Subscription.Name))
+            .ForMember(dest => dest.SubscriptionId, opt => opt.MapFrom(src => src.SubscriptionId));
         
         // Subscription history mappings
         CreateMap<UserSubscription, UserSubscriptionHistoryResponse>()

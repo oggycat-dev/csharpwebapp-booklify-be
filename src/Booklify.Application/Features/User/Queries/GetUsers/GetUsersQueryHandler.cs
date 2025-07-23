@@ -4,6 +4,7 @@ using AutoMapper;
 using Booklify.Application.Common.DTOs.User;
 using Booklify.Application.Common.Models;
 using Booklify.Application.Common.Interfaces;
+using Booklify.Domain.Enums;
 
 namespace Booklify.Application.Features.User.Queries.GetUsers;
 
@@ -48,7 +49,7 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PaginatedResu
                 
                 // Set subscription status
                 var hasActiveSubscription = user?.UserSubscriptions?
-                    .Any(us => us.IsActive && us.EndDate > DateTime.UtcNow) ?? false;
+                    .Any(us => us.Status == EntityStatus.Active && us.EndDate > DateTime.UtcNow) ?? false;
                 userResponse.HasActiveSubscription = hasActiveSubscription;
             }
             

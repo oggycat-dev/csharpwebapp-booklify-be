@@ -7,12 +7,22 @@ namespace Booklify.Domain.Enums;
 public enum EntityStatus
 {
     /// <summary>
+    /// Entity is temporarily disabled/hidden (maintenance, etc.)
+    /// </summary>
+    Inactive = 0,
+    
+    /// <summary>
     /// Entity is active and available in the system
     /// </summary>
     Active = 1,
     
     /// <summary>
-    /// Entity is temporarily disabled/hidden (maintenance, etc.)
+    /// Entity is pending (waiting for payment, approval, etc.)
     /// </summary>
-    Inactive = 0
+    Pending = 2,
+    
+    /// <summary>
+    /// Entity has expired (subscription expired, etc.)
+    /// </summary>
+    Expired = 3
 }

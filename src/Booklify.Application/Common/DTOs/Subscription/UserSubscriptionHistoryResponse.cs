@@ -23,9 +23,6 @@ public class UserSubscriptionHistoryResponse
     [JsonPropertyName("end_date")]
     public DateTime EndDate { get; set; }
     
-    [JsonPropertyName("is_active")]
-    public bool IsActive { get; set; }
-    
     [JsonPropertyName("auto_renew")]
     public bool AutoRenew { get; set; }
     

@@ -1,11 +1,14 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using AutoMapper;
 using Booklify.Application.Common.DTOs.Subscription;
 using Booklify.Application.Common.Interfaces;
 using Booklify.Application.Common.Models;
 using Booklify.Domain.Entities;
 using Booklify.Domain.Enums;
+using Booklify.Domain.Commons;
+using Microsoft.Extensions.Logging;
 
 namespace Booklify.Application.Features.Subscription.Commands.Subscribe;
 
@@ -15,20 +18,26 @@ public class SubscribeCommandHandler : IRequestHandler<SubscribeCommand, Result<
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IVNPayService _vnPayService;
+    private readonly IConfiguration _configuration;
     private readonly IMapper _mapper;
+    private readonly ILogger<SubscribeCommandHandler> _logger;
 
     public SubscribeCommandHandler(
         IBooklifyDbContext context,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IVNPayService vnPayService,
-        IMapper mapper)
+        IConfiguration configuration,
+        IMapper mapper,
+        ILogger<SubscribeCommandHandler> logger)
     {
         _context = context;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _vnPayService = vnPayService;
+        _configuration = configuration;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<Result<SubscribeResponse>> Handle(SubscribeCommand request, CancellationToken cancellationToken)
@@ -60,29 +69,34 @@ public class SubscribeCommandHandler : IRequestHandler<SubscribeCommand, Result<
 
         // Check if user already has an active subscription
         var existingSubscription = await _context.UserSubscriptions
-            .FirstOrDefaultAsync(us => us.UserId == userProfile.Id && us.IsActive && us.Status == EntityStatus.Active, cancellationToken);
+            .FirstOrDefaultAsync(us => us.UserId == userProfile.Id && 
+                                     us.Status == EntityStatus.Active && 
+                                     us.EndDate > DateTime.UtcNow, cancellationToken);
 
         if (existingSubscription != null)
         {
             return Result<SubscribeResponse>.Failure("User already has an active subscription", ErrorCode.BusinessRuleViolation);
         }
 
-        // Create UserSubscription (initially inactive until payment is completed)
+        // Create UserSubscription (initially pending until payment is completed)
         var userSubscription = new UserSubscription
         {
             UserId = userProfile.Id,
             SubscriptionId = subscription.Id,
             StartDate = DateTime.UtcNow,
             EndDate = DateTime.UtcNow.AddDays(subscription.Duration),
-            IsActive = false, // Will be activated after successful payment
             AutoRenew = request.Request.AutoRenew,
-            Status = EntityStatus.Active
+            Status = EntityStatus.Pending // Will be activated after successful payment
         };
+
+        // Set audit fields manually to avoid Id conflicts
+        userSubscription.CreatedAt = DateTime.UtcNow;
+        userSubscription.CreatedBy = Guid.Parse(currentUserId);
 
         _context.UserSubscriptions.Add(userSubscription);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Create Payment record
+        // Create Payment record immediately with Pending status
         var payment = new Domain.Entities.Payment
         {
             UserSubscriptionId = userSubscription.Id,
@@ -94,23 +108,44 @@ public class SubscribeCommandHandler : IRequestHandler<SubscribeCommand, Result<
             Description = $"Subscription payment for {subscription.Name}"
         };
 
+        // Set audit fields manually to avoid Id conflicts
+        payment.CreatedAt = DateTime.UtcNow;
+        payment.CreatedBy = Guid.Parse(currentUserId);
+
         _context.Payments.Add(payment);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Create VNPay payment URL
+        // Get VNPay return URL from configuration
+        var vnPayReturnUrl = _configuration["VNPay:ReturnUrl"];
+        if (string.IsNullOrEmpty(vnPayReturnUrl))
+        {
+            // Fallback to default if not configured
+            var backendUrl = _configuration["BackendUrl"] ?? "https://localhost:7123";
+            vnPayReturnUrl = $"{backendUrl}/api/payment/vnpay/return";
+        }
+
+        // Create VNPay payment URL with backend return URL from config
         var vnPayRequest = new Application.Common.DTOs.Payment.VNPayPaymentRequest
         {
             OrderId = payment.Id.ToString(),
             Amount = subscription.Price,
             OrderDescription = $"Payment for subscription: {subscription.Name}",
-            ReturnUrl = null, // Will use default from settings
+            ReturnUrl = vnPayReturnUrl,
             Language = "vn"
         };
+
+        _logger.LogInformation("Creating VNPay payment URL - PaymentId: {PaymentId}, OrderId: {OrderId}, Amount: {Amount}", 
+            payment.Id, payment.Id.ToString(), subscription.Price);
 
         var vnPayResponse = await _vnPayService.CreatePaymentUrlAsync(vnPayRequest, "127.0.0.1");
 
         if (!vnPayResponse.Success || string.IsNullOrEmpty(vnPayResponse.PaymentUrl))
         {
+            // If VNPay fails, update payment status to failed
+            payment.PaymentStatus = PaymentStatus.Failed;
+            payment.ProviderResponse = vnPayResponse.ErrorMessage ?? "Failed to create payment URL";
+            await _context.SaveChangesAsync(cancellationToken);
+            
             var errorMessage = !string.IsNullOrEmpty(vnPayResponse.ErrorMessage) 
                 ? vnPayResponse.ErrorMessage 
                 : "Failed to create payment URL";

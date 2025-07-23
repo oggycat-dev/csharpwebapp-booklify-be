@@ -17,12 +17,14 @@ public class PaymentController : ControllerBase
     private readonly IVNPayService _vnPayService;
     private readonly IMediator _mediator;
     private readonly ILogger<PaymentController> _logger;
+    private readonly IConfiguration _configuration;
 
-    public PaymentController(IVNPayService vnPayService, IMediator mediator, ILogger<PaymentController> logger)
+    public PaymentController(IVNPayService vnPayService, IMediator mediator, ILogger<PaymentController> logger, IConfiguration configuration)
     {
         _vnPayService = vnPayService;
         _mediator = mediator;
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -67,9 +69,9 @@ public class PaymentController : ControllerBase
     }
 
     /// <summary>
-    /// Handle VNPay return URL
+    /// Handle VNPay return URL - Process payment and show result page
     /// </summary>
-    /// <returns>Payment result</returns>
+    /// <returns>HTML page with payment result</returns>
     [HttpGet("vnpay/return")]
     public async Task<IActionResult> VNPayReturn()
     {
@@ -81,43 +83,82 @@ public class PaymentController : ControllerBase
             if (!queryParams.Any())
             {
                 _logger.LogWarning("VNPay return called with no query parameters");
-                return BadRequest(new { message = "No payment data received" });
+                var errorHtml = GeneratePaymentErrorPage("No payment data received", GetFrontendUrl());
+                return Content(errorHtml, "text/html");
             }
 
-            var response = await _vnPayService.ProcessReturnResponseAsync(queryParams);
+            // Extract VNPay parameters
+            var orderId = queryParams.GetValueOrDefault("vnp_TxnRef", "");
+            var vnpAmount = queryParams.GetValueOrDefault("vnp_Amount", "0");
+            var vnpayTranId = queryParams.GetValueOrDefault("vnp_TransactionNo", "");
+            var vnpResponseCode = queryParams.GetValueOrDefault("vnp_ResponseCode", "");
+            var vnpTransactionStatus = queryParams.GetValueOrDefault("vnp_TransactionStatus", "");
+            var vnpSecureHash = queryParams.GetValueOrDefault("vnp_SecureHash", "");
 
-            _logger.LogInformation("VNPay return processed - OrderId: {OrderId}, Success: {Success}, ResponseCode: {ResponseCode}", 
-                response.OrderId, response.Success, response.ResponseCode);
-
-            if (response.Success)
+            // Validate signature first
+            bool checkSignature = _vnPayService.VerifySignature(queryParams);
+            
+            if (!checkSignature)
             {
-                return Ok(new
-                {
-                    success = true,
-                    message = response.Message,
-                    orderId = response.OrderId,
-                    transactionId = response.TransactionId,
-                    amount = response.Amount,
-                    paymentDate = response.PaymentDate,
-                    bankCode = response.BankCode,
-                    transactionRef = response.TransactionRef
-                });
+                _logger.LogWarning("VNPay return - Invalid signature, InputData={0}", Request.GetDisplayUrl());
+                var errorHtml = GeneratePaymentErrorPage("Invalid payment signature", GetFrontendUrl());
+                return Content(errorHtml, "text/html");
+            }
+
+            // Convert amount from cents to VND
+            if (!long.TryParse(vnpAmount, out var amount))
+            {
+                _logger.LogWarning("Invalid amount in VNPay return: {Amount}", vnpAmount);
+                var errorHtml = GeneratePaymentErrorPage("Invalid payment amount", GetFrontendUrl());
+                return Content(errorHtml, "text/html");
+            }
+            amount = amount / 100; // Convert from cents
+
+            // Create command to process callback
+            var command = new ProcessPaymentCallbackCommand
+            {
+                OrderId = orderId,
+                TransactionId = vnpayTranId,
+                ResponseCode = vnpResponseCode,
+                TransactionStatus = vnpTransactionStatus,
+                Amount = amount,
+                PaymentMethod = queryParams.GetValueOrDefault("vnp_CardType", ""),
+                BankCode = queryParams.GetValueOrDefault("vnp_BankCode", ""),
+                PayDate = queryParams.GetValueOrDefault("vnp_PayDate", ""),
+                SecureHash = vnpSecureHash,
+                AdditionalData = queryParams
+            };
+
+            // Process the callback
+            var result = await _mediator.Send(command);
+            var frontendUrl = GetFrontendUrl();
+
+            if (result.IsSuccess && result.Data?.PaymentStatus == Domain.Enums.PaymentStatus.Success)
+            {
+                _logger.LogInformation("VNPay return processed successfully, OrderId={0}, VNPAY TranId={1}", 
+                    orderId, vnpayTranId);
+                
+                var successHtml = GeneratePaymentSuccessPage(result.Data, frontendUrl);
+                return Content(successHtml, "text/html");
+            }
+            else if (result.Data?.PaymentStatus == Domain.Enums.PaymentStatus.Cancelled)
+            {
+                _logger.LogInformation("VNPay return - Payment cancelled, OrderId={0}", orderId);
+                var cancelHtml = GeneratePaymentCancelPage(frontendUrl);
+                return Content(cancelHtml, "text/html");
             }
             else
             {
-                return Ok(new
-                {
-                    success = false,
-                    message = response.Message,
-                    orderId = response.OrderId,
-                    responseCode = response.ResponseCode
-                });
+                _logger.LogWarning("VNPay return - Payment failed, OrderId={0}, Error={1}", orderId, result.Message);
+                var errorHtml = GeneratePaymentErrorPage(result.Message, frontendUrl);
+                return Content(errorHtml, "text/html");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing VNPay return");
-            return StatusCode(500, new { message = "Internal server error while processing payment return" });
+            var errorHtml = GeneratePaymentErrorPage("Internal server error while processing payment", GetFrontendUrl());
+            return Content(errorHtml, "text/html");
         }
     }
 
@@ -362,6 +403,35 @@ public class PaymentController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Debug payment callback processing (for development only)
+    /// </summary>
+    /// <param name="request">Payment callback request</param>
+    /// <returns>Debug processing result</returns>
+    [HttpPost("debug/process-callback")]
+    public async Task<IActionResult> DebugProcessCallback([FromBody] ProcessPaymentCallbackCommand request)
+    {
+        try
+        {
+            _logger.LogInformation("Debug processing payment callback for OrderId: {OrderId}", request.OrderId);
+
+            var result = await _mediator.Send(request);
+
+            return Ok(new
+            {
+                success = result.IsSuccess,
+                message = result.Message,
+                data = result.Data,
+                errors = result.Errors
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in debug payment callback for OrderId: {OrderId}", request.OrderId);
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
     private string GetClientIpAddress()
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -377,5 +447,706 @@ public class PaymentController : ControllerBase
         }
 
         return ipAddress ?? "127.0.0.1";
+    }
+
+    private string GetFrontendUrl()
+    {
+        var frontendUrl = _configuration["FrontendUrl"];
+        if (string.IsNullOrEmpty(frontendUrl))
+        {
+            _logger.LogWarning("FrontendUrl not configured in appsettings.json");
+            return "https://localhost:5173"; // Fallback to a default if not configured
+        }
+        
+        // Get first URL if multiple URLs are configured (comma-separated)
+        var urls = frontendUrl.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        var firstUrl = urls[0].Trim();
+        
+        _logger.LogInformation("Using frontend URL: {FrontendUrl}", firstUrl);
+        return firstUrl;
+    }
+
+    private string GeneratePaymentErrorPage(string message, string frontendUrl)
+    {
+        return $@"
+<!DOCTYPE html>
+<html lang='vi'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Thanh toán thất bại - Booklify</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }}
+        
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(255, 149, 0, 0.3);
+            padding: 50px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .container::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #dc3545, #c82333, #dc3545);
+        }}
+        
+        .error-icon {{
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: shake 0.6s ease-out;
+        }}
+        
+        .error-icon::after {{
+            content: '✗';
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }}
+        
+        h1 {{
+            color: #dc3545;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }}
+        
+        .message {{
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }}
+        
+        .error-details {{
+            background: #fff5f5;
+            border: 2px solid #dc3545;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #dc3545;
+        }}
+        
+        .redirect-info {{
+            background: #fff5f0;
+            border: 2px solid #ff9500;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+        }}
+        
+        .redirect-text {{
+            color: #ff6b00;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }}
+        
+        .countdown {{
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff6b00;
+            margin: 10px 0;
+        }}
+        
+        .home-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4);
+            margin-top: 20px;
+        }}
+        
+        .home-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 149, 0, 0.6);
+        }}
+        
+        .booklify-logo {{
+            color: #ff6b00;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+        
+        @keyframes shake {{
+            0%, 100% {{ transform: translateX(0); }}
+            25% {{ transform: translateX(-5px); }}
+            75% {{ transform: translateX(5px); }}
+        }}
+        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        .container > * {{
+            animation: fadeIn 0.6s ease-out forwards;
+        }}
+        
+        .container > *:nth-child(2) {{ animation-delay: 0.1s; }}
+        .container > *:nth-child(3) {{ animation-delay: 0.2s; }}
+        .container > *:nth-child(4) {{ animation-delay: 0.3s; }}
+        .container > *:nth-child(5) {{ animation-delay: 0.4s; }}
+        .container > *:nth-child(6) {{ animation-delay: 0.5s; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='booklify-logo'>
+            📚 Booklify
+        </div>
+        
+        <div class='error-icon'></div>
+        
+        <h1>❌ Thanh toán thất bại</h1>
+        
+        <p class='message'>
+            Rất tiếc, quá trình thanh toán không thành công.
+        </p>
+        
+        <div class='error-details'>
+            <strong>Lỗi:</strong> {message}
+        </div>
+        
+        <p class='message'>
+            Vui lòng thử lại hoặc liên hệ với chúng tôi để được hỗ trợ.
+        </p>
+        
+        <div class='redirect-info'>
+            <div class='redirect-text'>Tự động chuyển về trang chủ trong:</div>
+            <div class='countdown' id='countdown'>4</div>
+            <div style='color: #888; font-size: 0.9em;'>giây</div>
+        </div>
+        
+        <a href='{frontendUrl}' class='home-button'>
+            🏠 Về trang chủ
+        </a>
+    </div>
+
+    <script>
+        let countdown = 4;
+        const countdownElement = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {{
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {{
+                clearInterval(timer);
+                window.location.href = '{frontendUrl}';
+            }}
+        }}, 1000);
+        
+        // Allow manual navigation
+        document.addEventListener('click', function(e) {{
+            if (e.target.classList.contains('home-button')) {{
+                clearInterval(timer);
+            }}
+        }});
+    </script>
+</body>
+</html>";
+    }
+
+    private string GeneratePaymentSuccessPage(Application.Common.DTOs.Subscription.PaymentStatusResponse payment, string frontendUrl)
+    {
+        return $@"
+<!DOCTYPE html>
+<html lang='vi'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Thanh toán thành công - Booklify</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }}
+        
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(255, 149, 0, 0.3);
+            padding: 50px 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .container::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+        }}
+        
+        .success-icon {{
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: bounce 0.6s ease-out;
+        }}
+        
+        .success-icon::after {{
+            content: '✓';
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }}
+        
+        h1 {{
+            color: #28a745;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }}
+        
+        .message {{
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }}
+        
+        .payment-details {{
+            background: #f8fff9;
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+        }}
+        
+        .payment-details h3 {{
+            color: #28a745;
+            margin-bottom: 15px;
+            text-align: center;
+        }}
+        
+        .detail-row {{
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }}
+        
+        .detail-label {{
+            font-weight: 600;
+            color: #495057;
+        }}
+        
+        .detail-value {{
+            color: #28a745;
+            font-weight: 500;
+        }}
+        
+        .redirect-info {{
+            background: #fff5f0;
+            border: 2px solid #ff9500;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+        }}
+        
+        .redirect-text {{
+            color: #ff6b00;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }}
+        
+        .countdown {{
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff6b00;
+            margin: 10px 0;
+        }}
+        
+        .home-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4);
+        }}
+        
+        .home-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 149, 0, 0.6);
+        }}
+        
+        .booklify-logo {{
+            color: #ff6b00;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+        
+        @keyframes bounce {{
+            0%, 20%, 50%, 80%, 100% {{ transform: translateY(0); }}
+            40% {{ transform: translateY(-10px); }}
+            60% {{ transform: translateY(-5px); }}
+        }}
+        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        .container > * {{
+            animation: fadeIn 0.6s ease-out forwards;
+        }}
+        
+        .container > *:nth-child(2) {{ animation-delay: 0.1s; }}
+        .container > *:nth-child(3) {{ animation-delay: 0.2s; }}
+        .container > *:nth-child(4) {{ animation-delay: 0.3s; }}
+        .container > *:nth-child(5) {{ animation-delay: 0.4s; }}
+        .container > *:nth-child(6) {{ animation-delay: 0.5s; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='booklify-logo'>
+            📚 Booklify
+        </div>
+        
+        <div class='success-icon'></div>
+        
+        <h1>🎉 Thanh toán thành công!</h1>
+        
+        <p class='message'>
+            Chúc mừng! Thanh toán của bạn đã được xử lý thành công.<br>
+            Subscription đã được kích hoạt và bạn có thể bắt đầu sử dụng dịch vụ.
+        </p>
+        
+        <div class='payment-details'>
+            <h3>Chi tiết thanh toán</h3>
+            <div class='detail-row'>
+                <span class='detail-label'>Số tiền:</span>
+                <span class='detail-value'>{payment.Amount:N0} VND</span>
+            </div>
+            <div class='detail-row'>
+                <span class='detail-label'>Mã đơn hàng:</span>
+                <span class='detail-value'>{payment.PaymentId}</span>
+            </div>
+            <div class='detail-row'>
+                <span class='detail-label'>Mã giao dịch:</span>
+                <span class='detail-value'>{payment.TransactionId}</span>
+            </div>
+            <div class='detail-row'>
+                <span class='detail-label'>Thời gian:</span>
+                <span class='detail-value'>{payment.PaymentDate?.ToString("dd/MM/yyyy HH:mm:ss")}</span>
+            </div>
+        </div>
+        
+        <div class='redirect-info'>
+            <div class='redirect-text'>Tự động chuyển về trang chủ trong:</div>
+            <div class='countdown' id='countdown'>4</div>
+            <div style='color: #888; font-size: 0.9em;'>giây</div>
+        </div>
+        
+        <a href='{frontendUrl}' class='home-button'>
+            🏠 Về trang chủ
+        </a>
+    </div>
+
+    <script>
+        let countdown = 4;
+        const countdownElement = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {{
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {{
+                clearInterval(timer);
+                window.location.href = '{frontendUrl}';
+            }}
+        }}, 1000);
+        
+        // Allow manual navigation
+        document.addEventListener('click', function(e) {{
+            if (e.target.classList.contains('home-button')) {{
+                clearInterval(timer);
+            }}
+        }});
+    </script>
+</body>
+</html>";
+    }
+
+    private string GeneratePaymentCancelPage(string frontendUrl)
+    {
+        return $@"
+<!DOCTYPE html>
+<html lang='vi'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Thanh toán bị hủy - Booklify</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }}
+        
+        .container {{
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(255, 149, 0, 0.3);
+            padding: 50px 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .container::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #6c757d, #5a6268, #6c757d);
+        }}
+        
+        .cancel-icon {{
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            animation: bounce 0.6s ease-out;
+        }}
+        
+        .cancel-icon::after {{
+            content: '⏸';
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+        }}
+        
+        h1 {{
+            color: #6c757d;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }}
+        
+        .message {{
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }}
+        
+        .redirect-info {{
+            background: #fff5f0;
+            border: 2px solid #ff9500;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+        }}
+        
+        .redirect-text {{
+            color: #ff6b00;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }}
+        
+        .countdown {{
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff6b00;
+            margin: 10px 0;
+        }}
+        
+        .home-button {{
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9500, #ff6b00);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4);
+        }}
+        
+        .home-button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 149, 0, 0.6);
+        }}
+        
+        .booklify-logo {{
+            color: #ff6b00;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }}
+        
+        @keyframes bounce {{
+            0%, 20%, 50%, 80%, 100% {{ transform: translateY(0); }}
+            40% {{ transform: translateY(-10px); }}
+            60% {{ transform: translateY(-5px); }}
+        }}
+        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        
+        .container > * {{
+            animation: fadeIn 0.6s ease-out forwards;
+        }}
+        
+        .container > *:nth-child(2) {{ animation-delay: 0.1s; }}
+        .container > *:nth-child(3) {{ animation-delay: 0.2s; }}
+        .container > *:nth-child(4) {{ animation-delay: 0.3s; }}
+        .container > *:nth-child(5) {{ animation-delay: 0.4s; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='booklify-logo'>
+            📚 Booklify
+        </div>
+        
+        <div class='cancel-icon'></div>
+        
+        <h1>⏸️ Thanh toán bị hủy</h1>
+        
+        <p class='message'>
+            Bạn đã hủy quá trình thanh toán.<br>
+            Đơn hàng chưa được xử lý và bạn có thể thử lại bất cứ lúc nào.
+        </p>
+        
+        <div class='redirect-info'>
+            <div class='redirect-text'>Tự động chuyển về trang chủ trong:</div>
+            <div class='countdown' id='countdown'>4</div>
+            <div style='color: #888; font-size: 0.9em;'>giây</div>
+        </div>
+        
+        <a href='{frontendUrl}' class='home-button'>
+            🏠 Về trang chủ
+        </a>
+    </div>
+
+    <script>
+        let countdown = 4;
+        const countdownElement = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {{
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {{
+                clearInterval(timer);
+                window.location.href = '{frontendUrl}';
+            }}
+        }}, 1000);
+        
+        // Allow manual navigation
+        document.addEventListener('click', function(e) {{
+            if (e.target.classList.contains('home-button')) {{
+                clearInterval(timer);
+            }}
+        }});
+    </script>
+</body>
+</html>";
     }
 } 

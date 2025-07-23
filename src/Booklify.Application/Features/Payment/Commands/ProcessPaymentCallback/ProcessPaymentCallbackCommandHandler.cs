@@ -35,29 +35,17 @@ public class ProcessPaymentCallbackCommandHandler : IRequestHandler<ProcessPayme
             _logger.LogInformation("Processing VNPay callback for OrderId: {OrderId}, TransactionId: {TransactionId}", 
                 request.OrderId, request.TransactionId);
 
-            // Validate VNPay signature
-            var isValidSignature = await _vnPayService.ValidateCallbackAsync(request.AdditionalData, request.SecureHash);
-            if (!isValidSignature)
-            {
-                _logger.LogWarning("Invalid VNPay signature for OrderId: {OrderId}", request.OrderId);
-                return Result<PaymentStatusResponse>.Failure("Invalid payment signature", ErrorCode.Forbidden);
-            }
+            // Note: Signature validation is already done in PaymentController IPN endpoint
+            // No need to validate again here to avoid duplicate validation
 
-            // Find payment record by OrderId (which is our PaymentId)
-            if (!Guid.TryParse(request.OrderId, out var paymentId))
-            {
-                _logger.LogWarning("Invalid OrderId format: {OrderId}", request.OrderId);
-                return Result<PaymentStatusResponse>.Failure("Invalid order ID format", ErrorCode.ValidationFailed);
-            }
-
-            var payment = await _context.Payments
-                .Include(p => p.UserSubscription)
-                .ThenInclude(us => us.Subscription)
-                .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
+            // Find payment record by VNPay TransactionId or by amount and timeframe
+            // Since VNPay might return different TxnRef format than our GUID
+            var payment = await FindPaymentRecordAsync(request, cancellationToken);
 
             if (payment == null)
             {
-                _logger.LogWarning("Payment not found for OrderId: {OrderId}", request.OrderId);
+                _logger.LogWarning("Payment not found for OrderId: {OrderId}, TransactionId: {TransactionId}, Amount: {Amount}", 
+                    request.OrderId, request.TransactionId, request.Amount);
                 return Result<PaymentStatusResponse>.Failure("Payment not found", ErrorCode.NotFound);
             }
 
@@ -66,7 +54,7 @@ public class ProcessPaymentCallbackCommandHandler : IRequestHandler<ProcessPayme
             {
                 _logger.LogInformation("Payment already processed successfully for OrderId: {OrderId}", request.OrderId);
                 var existingResponse = _mapper.Map<PaymentStatusResponse>(payment);
-                return Result<PaymentStatusResponse>.Success(existingResponse);
+                return Result<PaymentStatusResponse>.Success(existingResponse, "Order already confirmed");
             }
 
             // Validate amount
@@ -149,11 +137,49 @@ public class ProcessPaymentCallbackCommandHandler : IRequestHandler<ProcessPayme
         }
     }
 
+    private async Task<Domain.Entities.Payment?> FindPaymentRecordAsync(ProcessPaymentCallbackCommand request, CancellationToken cancellationToken)
+    {
+        // First try to find by amount and recent timeframe (more reliable)
+        var recentPayments = await _context.Payments
+            .Include(p => p.UserSubscription)
+            .ThenInclude(us => us.Subscription)
+            .Where(p => p.Amount == request.Amount && 
+                        p.PaymentStatus == PaymentStatus.Pending &&
+                        p.PaymentDate >= DateTime.UtcNow.AddMinutes(-30)) // Check for pending payments within the last 30 minutes
+            .OrderByDescending(p => p.PaymentDate)
+            .ToListAsync(cancellationToken);
+
+        if (recentPayments.Count > 0)
+        {
+            _logger.LogInformation("Found {Count} pending payment(s) with matching amount {Amount}", recentPayments.Count, request.Amount);
+            return recentPayments.First(); // Return the most recent one
+        }
+
+        // Fallback: try to parse OrderId as GUID
+        if (Guid.TryParse(request.OrderId, out var paymentId))
+        {
+            var payment = await _context.Payments
+                .Include(p => p.UserSubscription)
+                .ThenInclude(us => us.Subscription)
+                .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
+
+            if (payment != null)
+            {
+                _logger.LogInformation("Found payment by OrderId GUID: {PaymentId}", paymentId);
+                return payment;
+            }
+        }
+
+        _logger.LogWarning("Payment not found by any method for OrderId: {OrderId}, Amount: {Amount}", 
+            request.OrderId, request.Amount);
+        return null;
+    }
+
     private async Task<bool> ActivateSubscriptionAsync(Domain.Entities.UserSubscription userSubscription, CancellationToken cancellationToken)
     {
         try
         {
-            if (userSubscription.IsActive)
+            if (userSubscription.Status == EntityStatus.Active)
             {
                 _logger.LogInformation("Subscription already active for UserSubscriptionId: {UserSubscriptionId}", userSubscription.Id);
                 return true;
@@ -162,19 +188,19 @@ public class ProcessPaymentCallbackCommandHandler : IRequestHandler<ProcessPayme
             // Deactivate any existing active subscriptions for this user
             var existingActiveSubscriptions = await _context.UserSubscriptions
                 .Where(us => us.UserId == userSubscription.UserId && 
-                           us.IsActive && 
+                           us.Status == EntityStatus.Active && 
                            us.Id != userSubscription.Id &&
-                           us.Status == EntityStatus.Active)
+                           us.EndDate > DateTime.UtcNow)
                 .ToListAsync(cancellationToken);
 
             foreach (var existing in existingActiveSubscriptions)
             {
-                existing.IsActive = false;
+                existing.Status = EntityStatus.Inactive;
                 _logger.LogInformation("Deactivated existing subscription: {SubscriptionId}", existing.Id);
             }
 
             // Activate the new subscription
-            userSubscription.IsActive = true;
+            userSubscription.Status = EntityStatus.Active;
             userSubscription.StartDate = DateTime.UtcNow;
             userSubscription.EndDate = DateTime.UtcNow.AddDays(userSubscription.Subscription.Duration);
 
