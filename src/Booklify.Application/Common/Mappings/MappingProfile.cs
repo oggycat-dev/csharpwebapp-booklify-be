@@ -327,6 +327,8 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.NoteType, opt => opt.MapFrom(src => src.NoteType))
             .ForMember(dest => dest.NoteTypeName, opt => opt.MapFrom(src => src.NoteType.ToString()))
             .ForMember(dest => dest.Cfi, opt => opt.MapFrom(src => src.Cfi))
+            .ForMember(dest => dest.CfiStart, opt => opt.MapFrom(src => src.CfiStart))
+            .ForMember(dest => dest.CfiEnd, opt => opt.MapFrom(src => src.CfiEnd))
             .ForMember(dest => dest.HighlightedText, opt => opt.MapFrom(src => src.HighlightedText));
         
         CreateMap<ChapterNote, ChapterNoteResponse>()
@@ -343,7 +345,10 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.BookTitle, opt => opt.MapFrom(src => 
                 src.Chapter != null && src.Chapter.Book != null ? src.Chapter.Book.Title : string.Empty));
         
-        CreateMap<CreateChapterNoteRequest, ChapterNote>();
+        CreateMap<CreateChapterNoteRequest, ChapterNote>()
+            .ForMember(dest => dest.CfiStart, opt => opt.MapFrom(src => src.CfiStart))
+            .ForMember(dest => dest.CfiEnd, opt => opt.MapFrom(src => src.CfiEnd));
+            
         
         // Chapter mappings
         CreateMap<Chapter, ChapterResponse>()

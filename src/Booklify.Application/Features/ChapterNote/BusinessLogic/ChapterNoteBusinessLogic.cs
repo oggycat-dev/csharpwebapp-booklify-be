@@ -116,6 +116,9 @@ public class ChapterNoteBusinessLogic : IChapterNoteBusinessLogic
 
         // Map request to entity
         var note = mapper.Map<Domain.Entities.ChapterNote>(request);
+        // Đảm bảo set lại 2 trường này (dù đã mapping)
+        note.CfiStart = request.CfiStart;
+        note.CfiEnd = request.CfiEnd;
         
         // Set additional properties not in request
         note.UserId = userProfile.Id;
@@ -218,6 +221,16 @@ public class ChapterNoteBusinessLogic : IChapterNoteBusinessLogic
         if (request.NoteType.HasValue)
         {
             note.NoteType = request.NoteType.Value;
+        }
+
+        if (request.CfiStart != null)
+        {
+            note.CfiStart = request.CfiStart;
+        }
+
+        if (request.CfiEnd != null)
+        {
+            note.CfiEnd = request.CfiEnd;
         }
 
         // Update audit info with current identity user ID

@@ -27,4 +27,11 @@ public class ChapterNoteListItemResponse
 
     [JsonPropertyName("note_type_name")]
     public string NoteTypeName { get; set; }
+
+    [JsonPropertyName("cfi_start")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CfiStart { get; set; }
+    [JsonPropertyName("cfi_end")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CfiEnd { get; set; }
 } 

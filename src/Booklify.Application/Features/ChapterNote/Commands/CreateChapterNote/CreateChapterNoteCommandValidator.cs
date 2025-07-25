@@ -21,6 +21,13 @@ public class CreateChapterNoteCommandValidator : AbstractValidator<CreateChapter
             .MaximumLength(500).WithMessage("Highlighted text cannot exceed 500 characters")
             .When(x => !string.IsNullOrEmpty(x.Request.HighlightedText));
 
+        RuleFor(x => x.Request.CfiStart)
+            .MaximumLength(200).WithMessage("CFI start cannot exceed 200 characters")
+            .When(x => !string.IsNullOrEmpty(x.Request.CfiStart));
+        RuleFor(x => x.Request.CfiEnd)
+            .MaximumLength(200).WithMessage("CFI end cannot exceed 200 characters")
+            .When(x => !string.IsNullOrEmpty(x.Request.CfiEnd));
+
         RuleFor(x => x.Request.NoteType)
             .IsInEnum().WithMessage("Invalid note type");
 

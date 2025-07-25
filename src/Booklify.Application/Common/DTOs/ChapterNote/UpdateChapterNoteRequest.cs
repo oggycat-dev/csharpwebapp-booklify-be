@@ -15,6 +15,13 @@ public class UpdateChapterNoteRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Cfi { get; set; }
     
+    [JsonPropertyName("cfi_start")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CfiStart { get; set; }
+    [JsonPropertyName("cfi_end")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CfiEnd { get; set; }
+    
     [JsonPropertyName("highlighted_text")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? HighlightedText { get; set; }
