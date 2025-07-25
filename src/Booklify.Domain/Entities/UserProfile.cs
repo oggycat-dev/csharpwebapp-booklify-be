@@ -62,40 +62,27 @@ public class UserProfile : BaseEntity
     /// <summary>
     /// User's reading preferences or interests
     /// </summary>
-    public string? ReadingPreferences { get; set; }
+    public virtual FileInfo? Avatar { get; set; }
     
     /// <summary>
-    /// User's favorite genres
+    /// User's avatar ID
     /// </summary>
-    public string? FavoriteGenres { get; set; }
+    public Guid? AvatarId { get; set; }
+
+    public EntityStatus Status { get; set; } = EntityStatus.Active;
     
-    // /// <summary>
-    // /// User's reading level or experience
-    // /// </summary>
-    // public ReadingLevel ReadingLevel { get; set; } = ReadingLevel.Beginner;
+    /// <summary>
+    /// Navigation property to user subscriptions
+    /// </summary>
+    public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
+
+    /// <summary>
+    /// Navigation property to chapter notes
+    /// </summary>
+    public virtual ICollection<ChapterNote> ChapterNotes { get; set; } = new List<ChapterNote>();
     
-    // /// <summary>
-    // /// User's favorite books
-    // /// </summary>
-    // public virtual ICollection<Book> FavoriteBooks { get; set; } = new List<Book>();
-    
-    // /// <summary>
-    // /// User's reading list (books they want to read)
-    // /// </summary>
-    // public virtual ICollection<Book> ReadingList { get; set; } = new List<Book>();
-    
-    // /// <summary>
-    // /// User's borrowed books
-    // /// </summary>
-    // public virtual ICollection<BorrowedBook> BorrowedBooks { get; set; } = new List<BorrowedBook>();
-    
-    // /// <summary>
-    // /// User's book reviews
-    // /// </summary>
-    // public virtual ICollection<BookReview> BookReviews { get; set; } = new List<BookReview>();
-    
-    // /// <summary>
-    // /// User's reading history statistics
-    // /// </summary>
-    // public virtual ReadingStats? ReadingStats { get; set; }
+    /// <summary>
+    /// Navigation property to reading progress
+    /// </summary>
+    public virtual ICollection<ReadingProgress> ReadingProgresses { get; set; } = new List<ReadingProgress>();
 } 

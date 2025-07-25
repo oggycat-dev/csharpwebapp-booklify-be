@@ -7,6 +7,12 @@ using Booklify.Domain.Entities.Identity;
 using Booklify.Infrastructure.Persistence;
 using Booklify.Infrastructure.Services;
 using Booklify.Infrastructure.Models;
+using Booklify.Application.Common.Interfaces.Repositories;
+using Booklify.Infrastructure.Repositories;
+
+using Amazon.S3;
+using Booklify.Infrastructure.Services.BackgroundJobs;
+
 
 namespace Booklify.Infrastructure;
 
@@ -37,11 +43,6 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString,
                 sqlOptions => 
                 {
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(30),
-                        errorNumbersToAdd: null);
-                        
                     sqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
                 }));
             
@@ -49,11 +50,6 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString,
                 sqlOptions => 
                 {
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(30),
-                        errorNumbersToAdd: null);
-                        
                     sqlOptions.MigrationsAssembly(typeof(BooklifyDbContext).Assembly.FullName);
                 }));
                 
@@ -76,22 +72,103 @@ public static class DependencyInjection
             options.Lockout.MaxFailedAccessAttempts = 5;
             
             // User settings
-            options.User.RequireUniqueEmail = true;
+            options.User.RequireUniqueEmail = true;  // Changed to true for email verification
             
-            // SignIn settings
-            options.SignIn.RequireConfirmedEmail = false;
+            // SignIn settings  
+            options.SignIn.RequireConfirmedEmail = true;   // Changed to true for email verification
             options.SignIn.RequireConfirmedPhoneNumber = false;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
         
+        // Configure email token lifespan (24 hours)
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+        {
+            options.TokenLifespan = TimeSpan.FromHours(24);
+        });
+        
         // Configure JWT settings
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         
+        // Configure Storage settings
+        services.Configure<StorageSettings>(configuration.GetSection("Storage"));
+        
+        // Configure VNPay settings
+        services.Configure<VNPaySettings>(configuration.GetSection("VNPay"));
+        
+        // Configure Email settings
+        services.Configure<EmailSettings>(configuration.GetSection("Email"));
+        
+        // Gemini configuration is now handled in API layer
+        
+        // Register repositories
+        services.AddScoped<IStaffProfileRepository, StaffProfileRepository>();
+        services.AddScoped<IBookCategoryRepository, BookCategoryRepository>();
+        services.AddScoped<IBookRepository, BookRepository>();
+        services.AddScoped<IChapterRepository, ChapterRepository>();
+        services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+        services.AddScoped<IFileInfoRepository, FileInfoRepository>();
+        services.AddScoped<IChapterAIResultRepository, ChapterAIResultRepository>();
+        services.AddScoped<IChapterNoteRepository, ChapterNoteRepository>();
+        services.AddScoped<IReadingProgressRepository, ReadingProgressRepository>();
+        services.AddScoped<IChapterReadingProgressRepository, ChapterReadingProgressRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
+        services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+        services.AddScoped<IUserSubscriptionRepository, UserSubscriptionRepository>();
+
+        // Register Unit of Work
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Configure AWS S3 Client
+        services.AddScoped<IAmazonS3>(provider =>
+        {
+            var storageSettings = configuration.GetSection("Storage").Get<StorageSettings>();
+            var s3Config = new AmazonS3Config
+            {
+                RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(storageSettings?.AmazonS3?.Region ?? "us-east-1"),
+                UseHttp = !(storageSettings?.AmazonS3?.UseHttps ?? true)
+            };
+            
+            var accessKey = storageSettings?.AmazonS3?.AccessKey ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+            var secretKey = storageSettings?.AmazonS3?.SecretKey ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+            
+            if (!string.IsNullOrEmpty(accessKey) && !string.IsNullOrEmpty(secretKey))
+            {
+                return new AmazonS3Client(accessKey, secretKey, s3Config);
+            }
+            
+            // Use default credential chain (IAM roles, environment variables, etc.)
+            return new AmazonS3Client(s3Config);
+        });
+
+        // Register storage services
+        services.AddScoped<LocalStorageService>();
+        services.AddScoped<AmazonS3StorageService>();
+        services.AddScoped<IStorageFactory, StorageFactory>();
+        services.AddScoped<IStorageService>(provider => 
+            provider.GetRequiredService<IStorageFactory>().CreateStorageService());
+
         // Register services
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IEPubService, EPubService>();
+        services.AddScoped<IFileBackgroundService, FileBackgroundService>();
+        services.AddScoped<IFileService, FileService>();
+        
+        // Register Gemini service with HttpClient
+        services.AddHttpClient<GeminiService>();
+        services.AddScoped<ITextAIService, GeminiService>();
+        
+        // Background jobs are registered in HangfireConfiguration
+        
+        
+        // Register Hangfire initialization service
+        services.AddHostedService<HangfireInitializationService>();
+        services.AddScoped<IVNPayService, VNPayService>();
+        
+        // Register Email service
+        services.AddScoped<IEmailService, EmailService>();
             
         return services;
     }

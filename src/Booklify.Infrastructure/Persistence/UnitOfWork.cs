@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Booklify.Application.Common.Interfaces;
+using Booklify.Application.Common.Interfaces.Repositories;
 
 namespace Booklify.Infrastructure.Persistence;
 
@@ -12,13 +13,79 @@ public class UnitOfWork : IUnitOfWork
 {
     private readonly BooklifyDbContext _businessContext;
     private IDbContextTransaction? _transaction;
+    private IStaffProfileRepository _staffProfileRepository;
+    private IBookCategoryRepository _bookCategoryRepository;
+    private IBookRepository _bookRepository;
+    private IChapterRepository _chapterRepository;
+    private IUserProfileRepository _userProfileRepository;
+    private IFileInfoRepository _fileInfoRepository;
+    private IChapterAIResultRepository _chapterAIResultRepository;
+    private IChapterNoteRepository _chapterNoteRepository;
+    private IReadingProgressRepository _readingProgressRepository;
+    private IChapterReadingProgressRepository _chapterReadingProgressRepository;
+    private IPaymentRepository _paymentRepository;
+    private ISubscriptionRepository _subscriptionRepository;
+    private IUserSubscriptionRepository _userSubscriptionRepository;
 
-    public UnitOfWork(BooklifyDbContext businessContext)
+    public UnitOfWork(
+        BooklifyDbContext businessContext,
+        IStaffProfileRepository staffProfileRepository,
+        IBookCategoryRepository bookCategoryRepository,
+        IBookRepository bookRepository,
+        IChapterRepository chapterRepository,
+        IUserProfileRepository userProfileRepository,
+        IFileInfoRepository fileInfoRepository,
+        IChapterAIResultRepository chapterAIResultRepository,
+        IChapterNoteRepository chapterNoteRepository,
+        IReadingProgressRepository readingProgressRepository,
+        IChapterReadingProgressRepository chapterReadingProgressRepository,
+        IPaymentRepository paymentRepository,
+        ISubscriptionRepository subscriptionRepository,
+        IUserSubscriptionRepository userSubscriptionRepository)
     {
         _businessContext = businessContext;
+        _staffProfileRepository = staffProfileRepository;
+        _bookCategoryRepository = bookCategoryRepository;
+        _bookRepository = bookRepository;
+        _chapterRepository = chapterRepository;
+        _userProfileRepository = userProfileRepository;
+        _fileInfoRepository = fileInfoRepository;
+        _chapterAIResultRepository = chapterAIResultRepository;
+        _chapterNoteRepository = chapterNoteRepository;
+        _readingProgressRepository = readingProgressRepository;
+        _chapterReadingProgressRepository = chapterReadingProgressRepository;
+        _paymentRepository = paymentRepository;
+        _subscriptionRepository = subscriptionRepository;
+        _userSubscriptionRepository = userSubscriptionRepository;
     }
 
     public IBooklifyDbContext BusinessContext => _businessContext;
+
+    public IStaffProfileRepository StaffProfileRepository => _staffProfileRepository;
+
+    public IBookCategoryRepository BookCategoryRepository => _bookCategoryRepository;
+
+    public IBookRepository BookRepository => _bookRepository;
+
+    public IChapterRepository ChapterRepository => _chapterRepository;
+
+    public IUserProfileRepository UserProfileRepository => _userProfileRepository;
+
+    public IFileInfoRepository FileInfoRepository => _fileInfoRepository;
+
+    public IChapterAIResultRepository ChapterAIResultRepository => _chapterAIResultRepository;
+
+    public IChapterNoteRepository ChapterNoteRepository => _chapterNoteRepository;
+
+    public IReadingProgressRepository ReadingProgressRepository => _readingProgressRepository;
+
+    public IChapterReadingProgressRepository ChapterReadingProgressRepository => _chapterReadingProgressRepository;
+
+    public IPaymentRepository PaymentRepository => _paymentRepository;
+
+    public ISubscriptionRepository SubscriptionRepository => _subscriptionRepository;
+
+    public IUserSubscriptionRepository UserSubscriptionRepository => _userSubscriptionRepository;
 
     /// <summary>
     /// Begin a transaction

@@ -1,0 +1,60 @@
+### Variables
+@baseUrl = https://localhost:7000
+@apiUrl = {{baseUrl}}/api
+
+### Get all subscription plans (public)
+GET {{apiUrl}}/subscription/plans
+Content-Type: application/json
+
+### Subscribe to a plan (requires authentication)
+POST {{apiUrl}}/subscription/subscribe
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "subscription_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "auto_renew": true,
+  "payment_method": "VNPay"
+}
+
+### Get my subscriptions (requires authentication)
+GET {{apiUrl}}/subscription/my-subscriptions
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Example subscription plan creation (for testing - admin only)
+POST {{apiUrl}}/cms/subscription/create
+Content-Type: application/json
+Authorization: Bearer ADMIN_TOKEN_HERE
+
+{
+  "name": "Premium Monthly",
+  "description": "Access to all premium books for 1 month",
+  "price": 99000,
+  "duration": 30
+}
+
+### Example subscription plan creation - 3 months
+POST {{apiUrl}}/cms/subscription/create
+Content-Type: application/json
+Authorization: Bearer ADMIN_TOKEN_HERE
+
+{
+  "name": "Premium Quarterly",
+  "description": "Access to all premium books for 3 months with 10% discount",
+  "price": 267300,
+  "duration": 90
+}
+
+### Example subscription plan creation - yearly
+POST {{apiUrl}}/cms/subscription/create
+Content-Type: application/json
+Authorization: Bearer ADMIN_TOKEN_HERE
+
+{
+  "name": "Premium Yearly",
+  "description": "Access to all premium books for 1 year with 20% discount",
+  "price": 950400,
+  "duration": 365
+} 

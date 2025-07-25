@@ -1,0 +1,44 @@
+### VNPay IPN Callback Test (Success)
+GET {{baseUrl}}/api/payment/vnpay/ipn?vnp_Amount=10000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14271027&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20don%20hang%3A123456&vnp_PayDate=20231201123000&vnp_ResponseCode=00&vnp_TmnCode=DEMO&vnp_TransactionNo=14271027&vnp_TransactionStatus=00&vnp_TxnRef=123456&vnp_SecureHash=abc123
+
+### VNPay IPN Callback Test (Failed)
+GET {{baseUrl}}/api/payment/vnpay/ipn?vnp_Amount=10000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14271028&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20don%20hang%3A123457&vnp_PayDate=20231201123100&vnp_ResponseCode=99&vnp_TmnCode=DEMO&vnp_TransactionNo=14271028&vnp_TransactionStatus=99&vnp_TxnRef=123457&vnp_SecureHash=xyz789
+
+### VNPay IPN Callback Test (Cancelled)
+GET {{baseUrl}}/api/payment/vnpay/ipn?vnp_Amount=10000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14271029&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20don%20hang%3A123458&vnp_PayDate=20231201123200&vnp_ResponseCode=24&vnp_TmnCode=DEMO&vnp_TransactionNo=14271029&vnp_TransactionStatus=24&vnp_TxnRef=123458&vnp_SecureHash=def456
+
+### VNPay Return URL Test (Success)
+GET {{baseUrl}}/api/payment/vnpay/return?vnp_Amount=10000000&vnp_BankCode=NCB&vnp_BankTranNo=VNP14271027&vnp_CardType=ATM&vnp_OrderInfo=Thanh%20toan%20don%20hang%3A123456&vnp_PayDate=20231201123000&vnp_ResponseCode=00&vnp_TmnCode=DEMO&vnp_TransactionNo=14271027&vnp_TransactionStatus=00&vnp_TxnRef=123456&vnp_SecureHash=abc123
+
+### Test VNPay Payment Creation
+POST {{baseUrl}}/api/payment/vnpay/create-payment
+Content-Type: application/json
+
+{
+  "orderId": "{{$guid}}",
+  "amount": 100000,
+  "orderDescription": "Test subscription payment",
+  "language": "vn",
+  "bankCode": "NCB"
+}
+
+### Get Supported Banks
+GET {{baseUrl}}/api/payment/vnpay/banks
+
+### Verify Payment Status
+GET {{baseUrl}}/api/payment/vnpay/verify/{{$guid}}
+
+### Notes:
+# - VNPay IPN is sent via GET request with query parameters
+# - Both vnp_ResponseCode and vnp_TransactionStatus must be "00" for success
+# - vnp_Amount is in cents (multiply by 100)
+# - vnp_SecureHash must be calculated using HMAC-SHA512
+# - Response format: {"RspCode":"00","Message":"Confirm Success"}
+# 
+# Response Codes:
+# - 00: Success
+# - 01: Order not found
+# - 02: Order already confirmed
+# - 04: Invalid amount
+# - 97: Invalid signature
+# - 99: Unknown error 

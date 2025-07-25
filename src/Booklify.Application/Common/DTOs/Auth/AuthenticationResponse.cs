@@ -29,6 +29,9 @@ public class AuthenticationResponse
     [JsonPropertyName("token_expires_in")]
     public int TokenExpiresIn { get; set; }
     
+    [JsonPropertyName("token_expires_at")]
+    public DateTime TokenExpiresAt { get; set; }
+    
     [JsonPropertyName("avatar")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Avatar { get; set; }

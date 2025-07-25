@@ -145,10 +145,10 @@ public static class DbInitializer
                             FirstName = "Admin",
                             LastName = "Booklify",
                             FullName = "Admin Booklify",
-                            Position = "System Administrator",
                             JoinDate = DateTime.UtcNow,
                             CreatedAt = DateTime.UtcNow,
-                            CreatedBy = adminUser.EntityId.Value
+                            CreatedBy = adminUser.EntityId.Value,
+                            Position = StaffPosition.Administrator,
                         };
                         
                         await dbContext.StaffProfiles.AddAsync(adminProfile);
@@ -165,6 +165,23 @@ public static class DbInitializer
             catch (Exception ex)
             {
                 Console.WriteLine($"Error creating admin users: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+            }
+            #endregion
+            
+            #region Seed Subscription Plans
+            try
+            {
+                Console.WriteLine("Seeding subscription plans...");
+                await SeedSubscriptionPlansAsync(dbContext);
+                Console.WriteLine("Subscription plans seeded successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error seeding subscription plans: {ex.Message}");
                 if (ex.InnerException != null)
                 {
                     Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
@@ -247,5 +264,64 @@ public static class DbInitializer
         
         await dbContext.SaveChangesAsync();
         Console.WriteLine("Database marked as seeded successfully");
+    }
+
+    private static async Task SeedSubscriptionPlansAsync(BooklifyDbContext dbContext)
+    {
+        // Check if subscription plans already exist
+        var existingPlans = await dbContext.Subscriptions.CountAsync();
+        if (existingPlans > 0)
+        {
+            Console.WriteLine("Subscription plans already exist. Skipping seeding.");
+            return;
+        }
+
+        var subscriptionPlans = new List<Subscription>
+        {
+            new Subscription
+            {
+                Id = Guid.NewGuid(),
+                Name = "Basic Monthly",
+                Description = "Basic access to books for one month",
+                Price = 49000,
+                Duration = 30,
+                Features = "Limited book downloads;Basic support",
+                IsPopular = false,
+                DisplayOrder = 2,
+                Status = EntityStatus.Active,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Subscription
+            {
+                Id = Guid.NewGuid(),
+                Name = "Premium Monthly",
+                Description = "Access to premium features for one month",
+                Price = 99000,
+                Duration = 30,
+                Features = "Unlimited book downloads;Offline reading;Premium support;Advanced search",
+                IsPopular = true,
+                DisplayOrder = 1,
+                Status = EntityStatus.Active,
+                CreatedAt = DateTime.UtcNow
+            },
+            new Subscription
+            {
+                Id = Guid.NewGuid(),
+                Name = "Premium Yearly",
+                Description = "Premium access for one year with discount",
+                Price = 990000,
+                Duration = 365,
+                Features = "Unlimited book downloads;Offline reading;Premium support;Advanced search;Priority customer service;Early access to new books",
+                IsPopular = true,
+                DisplayOrder = 0,
+                Status = EntityStatus.Active,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        await dbContext.Subscriptions.AddRangeAsync(subscriptionPlans);
+        await dbContext.SaveChangesAsync();
+        
+        Console.WriteLine($"Added {subscriptionPlans.Count} subscription plans to database");
     }
 } 

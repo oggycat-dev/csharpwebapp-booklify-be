@@ -1,0 +1,37 @@
+### Common Reference Data APIs
+
+### 1. Get Approval Statuses
+GET https://localhost:5001/api/common/reference/approval-statuses
+Accept: application/json
+
+### 2. Get Entity Statuses
+GET https://localhost:5001/api/common/reference/entity-statuses
+Accept: application/json
+
+### 3. Get Genders
+GET https://localhost:5001/api/common/reference/genders
+Accept: application/json
+
+### 4. Get Roles
+GET https://localhost:5001/api/common/reference/roles
+Accept: application/json
+
+### 5. Get Staff Positions
+GET https://localhost:5001/api/common/reference/staff-positions
+Accept: application/json
+
+### 6. Get Payment Statuses
+GET https://localhost:5001/api/common/reference/payment-statuses
+Accept: application/json
+
+### 7. Get Chapter Note Types
+GET https://localhost:5001/api/common/reference/chapter-note-types
+Accept: application/json
+
+### 8. Get File Upload Types
+GET https://localhost:5001/api/common/reference/file-upload-types
+Accept: application/json
+
+### 9. Get File Job Statuses
+GET https://localhost:5001/api/common/reference/file-job-statuses
+Accept: application/json

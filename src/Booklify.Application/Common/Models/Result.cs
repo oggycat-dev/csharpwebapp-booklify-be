@@ -46,7 +46,17 @@ public enum ErrorCode
     FileNotFound = 6002,
     StorageError = 6003,
     InvalidFileType = 6004,
-    FileSizeTooLarge = 6005
+    FileSizeTooLarge = 6005,
+    
+    // AI & External Service Errors
+    FeatureDisabled = 7001,
+    InvalidResponse = 7002,
+    
+    // Email Errors
+    EmailSendFailed = 8001,
+    EmailNotConfirmed = 8002,
+    EmailAlreadyConfirmed = 8003,
+    InvalidEmailToken = 8004
 }
 
 /// <summary>
@@ -99,6 +109,14 @@ public static class ErrorCodeExtensions
             ErrorCode.ExternalServiceError => StatusCodes.Status500InternalServerError,
             ErrorCode.FileUploadFailed => StatusCodes.Status500InternalServerError,
             ErrorCode.StorageError => StatusCodes.Status500InternalServerError,
+            ErrorCode.FeatureDisabled => StatusCodes.Status503ServiceUnavailable,
+            ErrorCode.InvalidResponse => StatusCodes.Status502BadGateway,
+            
+            // Email Errors
+            ErrorCode.EmailSendFailed => StatusCodes.Status500InternalServerError,
+            ErrorCode.EmailNotConfirmed => StatusCodes.Status403Forbidden,
+            ErrorCode.EmailAlreadyConfirmed => StatusCodes.Status400BadRequest,
+            ErrorCode.InvalidEmailToken => StatusCodes.Status400BadRequest,
             
             _ => StatusCodes.Status500InternalServerError
         };

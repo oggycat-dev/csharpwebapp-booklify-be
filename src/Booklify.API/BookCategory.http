@@ -1,0 +1,79 @@
+### Get Book Categories (Public API - No Auth)
+GET {{baseUrl}}/api/book-categories?pageNumber=1&pageSize=10&sortBy=name&isAscending=true
+
+### Get Book Categories with filters (Public API)
+GET {{baseUrl}}/api/book-categories?name=Tiểu&status=1&pageNumber=1&pageSize=5
+
+### Get Book Categories (Admin API)
+GET {{baseUrl}}/api/cms/book-categories/list?pageNumber=1&pageSize=10&sortBy=name&isAscending=true
+Authorization: Bearer {{adminToken}}
+
+### Get Book Categories with filters (Admin API)
+GET {{baseUrl}}/api/cms/book-categories/list?name=khoa&description=công&status=1
+Authorization: Bearer {{adminToken}}
+
+### Create Book Category
+POST {{baseUrl}}/api/cms/book-categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Tiểu thuyết",
+  "description": "Danh mục dành cho các tiểu thuyết và truyện dài"
+}
+
+### Create Book Category - Science
+POST {{baseUrl}}/api/cms/book-categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Sách khoa học",
+  "description": "Danh mục dành cho các sách khoa học và công nghệ"
+}
+
+### Create Book Category - Literature
+POST {{baseUrl}}/api/cms/book-categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Văn học",
+  "description": "Danh mục dành cho các tác phẩm văn học"
+}
+
+### Update Book Category - Partial Update
+PATCH {{baseUrl}}/api/cms/book-categories/{{categoryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Tiểu thuyết cập nhật",
+  "description": "Mô tả đã được cập nhật"
+}
+
+### Update Book Category - Change Status Only
+PATCH {{baseUrl}}/api/cms/book-categories/{{categoryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "isActive": false
+}
+
+### Update Book Category - Name Only
+PATCH {{baseUrl}}/api/cms/book-categories/{{categoryId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Tên danh mục mới"
+}
+
+### Delete Book Category
+DELETE {{baseUrl}}/api/cms/book-categories/{{categoryId}}
+Authorization: Bearer {{adminToken}}
+
+### Delete Book Category - Test with non-existent ID
+DELETE {{baseUrl}}/api/cms/book-categories/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{adminToken}} 

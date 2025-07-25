@@ -50,7 +50,13 @@ public class IdentityService : IIdentityService
         
         if (user == null)
         {
-            return Result<AppUser>.Failure("Tên đăng nhập hoặc mật khẩu không đúng", ErrorCode.InvalidCredentials);
+            return Result<AppUser>.Failure("Username or password is incorrect", ErrorCode.InvalidCredentials);
+        }
+        
+        // Check if email is confirmed
+        if (!user.EmailConfirmed)
+        {
+            return Result<AppUser>.Failure("Please verify your email first", ErrorCode.EmailNotConfirmed);
         }
         
         // Verify password
@@ -58,7 +64,7 @@ public class IdentityService : IIdentityService
         
         if (!result.Succeeded)
         {
-            return Result<AppUser>.Failure("Tên đăng nhập hoặc mật khẩu không đúng", ErrorCode.InvalidCredentials);
+            return Result<AppUser>.Failure("Username or password is incorrect", ErrorCode.InvalidCredentials);
         }
         
         return Result<AppUser>.Success(user);
@@ -73,13 +79,13 @@ public class IdentityService : IIdentityService
         
         if (user == null)
         {
-            return Result<AppUser>.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+            return Result<AppUser>.Failure("User not found", ErrorCode.UserNotFound);
         }
 
         // Validate refresh token
         if (string.IsNullOrEmpty(user.RefreshToken))
         {
-            return Result<AppUser>.Failure("Refresh token không tồn tại", ErrorCode.Unauthorized);
+            return Result<AppUser>.Failure("Refresh token not found", ErrorCode.Unauthorized);
         }
 
         if (!user.RefreshTokenExpiryTime.HasValue || user.RefreshTokenExpiryTime.Value <= DateTime.UtcNow)
@@ -89,7 +95,7 @@ public class IdentityService : IIdentityService
             user.RefreshTokenExpiryTime = null;
             await _userManager.UpdateAsync(user);
             
-            return Result<AppUser>.Failure("Refresh token đã hết hạn", ErrorCode.Unauthorized);
+            return Result<AppUser>.Failure("Refresh token expired", ErrorCode.Unauthorized);
         }
 
         return Result<AppUser>.Success(user);
@@ -124,7 +130,7 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
-            return Result<AppUser>.Failure("Tạo tài khoản không thành công", ErrorCode.ValidationFailed, errors);
+            return Result<AppUser>.Failure("Create account failed", ErrorCode.ValidationFailed, errors);
         }
         return Result<AppUser>.Success(user);
     }
@@ -134,12 +140,14 @@ public class IdentityService : IIdentityService
     /// </summary>
     public async Task<Result<UserRegistrationResponse>> RegisterUserAsync(UserRegistrationRequest request)
     {
-        // Create identity user
+        // Create identity user - INACTIVE until email confirmed
         var user = new AppUser
         {
             UserName = request.Username,
             Email = request.Email,
             PhoneNumber = request.PhoneNumber,
+            EmailConfirmed = false,  // Must verify email first
+            IsActive = false,        // Account inactive until email verified
         };
         
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -147,7 +155,7 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
-            return Result<UserRegistrationResponse>.Failure("Tạo tài khoản không thành công", ErrorCode.ValidationFailed, errors);
+            return Result<UserRegistrationResponse>.Failure("Create account failed", ErrorCode.ValidationFailed, errors);
         }
         
         // Assign role
@@ -155,7 +163,7 @@ public class IdentityService : IIdentityService
         if (!roleResult.Succeeded)
         {
             var errors = roleResult.Errors.Select(e => e.Description).ToList();
-            return Result<UserRegistrationResponse>.Failure("Gán vai trò không thành công", ErrorCode.ValidationFailed, errors);
+            return Result<UserRegistrationResponse>.Failure("Assign role failed", ErrorCode.ValidationFailed, errors);
         }
             
         // Return response
@@ -185,7 +193,7 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
-            return Result<StaffRegistrationResponse>.Failure("Tạo tài khoản không thành công", ErrorCode.ValidationFailed, errors);
+            return Result<StaffRegistrationResponse>.Failure("Create account failed", ErrorCode.ValidationFailed, errors);
         }
         
         // Assign role
@@ -193,7 +201,7 @@ public class IdentityService : IIdentityService
         if (!roleResult.Succeeded)
         {
             var errors = roleResult.Errors.Select(e => e.Description).ToList();
-            return Result<StaffRegistrationResponse>.Failure("Gán vai trò không thành công", ErrorCode.ValidationFailed, errors);
+            return Result<StaffRegistrationResponse>.Failure("Assign role failed", ErrorCode.ValidationFailed, errors);
         }
             
         // Return response - StaffId will be set by CQRS handler after creating entity
@@ -214,7 +222,7 @@ public class IdentityService : IIdentityService
         
         if (user == null)
         {
-            return Result.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+            return Result.Failure("User not found", ErrorCode.UserNotFound);
         }
         
         user.EntityId = entityId;
@@ -224,7 +232,7 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
-            return Result.Failure("Cập nhật thông tin không thành công", ErrorCode.ValidationFailed, errors);
+            return Result.Failure("Update information failed", ErrorCode.ValidationFailed, errors);
         }
         
         return Result.Success();
@@ -239,12 +247,12 @@ public class IdentityService : IIdentityService
         
         if (user == null)
         {
-            return Result.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+            return Result.Failure("User not found", ErrorCode.UserNotFound);
         }
         
         if (user.IsActive == false)
         {
-            return Result.Failure("Tài khoản đã bị khóa", ErrorCode.Unauthorized);
+            return Result.Failure("Account is not active", ErrorCode.Unauthorized);
         }
 
         var result = await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
@@ -255,12 +263,12 @@ public class IdentityService : IIdentityService
             // Check if error is about incorrect password
             if (errors.Any(e => e.Contains("Incorrect password")))
             {
-                return Result.Failure("Mật khẩu cũ không đúng", ErrorCode.InvalidCredentials, errors);
+                return Result.Failure("Old password is incorrect", ErrorCode.InvalidCredentials, errors);
             }
-            return Result.Failure("Đổi mật khẩu không thành công", ErrorCode.ValidationFailed, errors);
+            return Result.Failure("Change password failed", ErrorCode.ValidationFailed, errors);
         }
         
-        return Result.Success("Đổi mật khẩu thành công");
+        return Result.Success("Change password success");
     }
     
     /// <summary>
@@ -271,7 +279,7 @@ public class IdentityService : IIdentityService
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId))
         {
-            return Result.Failure("Người dùng không được xác thực", ErrorCode.Unauthorized);
+            return Result.Failure("User is not authenticated", ErrorCode.Unauthorized);
         }
         
         return await ChangePasswordAsync(userId, oldPassword, newPassword);
@@ -286,7 +294,7 @@ public class IdentityService : IIdentityService
         
         if (user == null)
         {
-            return Result<List<string>>.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+            return Result<List<string>>.Failure("User not found", ErrorCode.UserNotFound);
         }
         
         // Store FCM token logic here
@@ -304,7 +312,7 @@ public class IdentityService : IIdentityService
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId))
         {
-            return Result<List<string>>.Failure("Người dùng không được xác thực", ErrorCode.Unauthorized);
+            return Result<List<string>>.Failure("User is not authenticated", ErrorCode.Unauthorized);
         }
         
         return await UpdateFcmTokenAsync(userId, fcmToken);
@@ -319,12 +327,12 @@ public class IdentityService : IIdentityService
         
         if (user == null)
         {
-            return Result.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+            return Result.Failure("User not found", ErrorCode.UserNotFound);
         }
 
         if (user.IsActive == false)
         {
-            return Result.Failure("Tài khoản đã bị khóa", ErrorCode.Unauthorized);
+            return Result.Failure("Account is not active", ErrorCode.Unauthorized);
         }
         
         // Clear refresh token
@@ -333,7 +341,7 @@ public class IdentityService : IIdentityService
         
         await _userManager.UpdateAsync(user);
         
-        return Result.Success("Đăng xuất thành công");
+        return Result.Success("Logout success");
     }
     
     /// <summary>
@@ -344,7 +352,7 @@ public class IdentityService : IIdentityService
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId))
         {
-            return Result.Failure("Người dùng không được xác thực", ErrorCode.Unauthorized);
+            return Result.Failure("User is not authenticated", ErrorCode.Unauthorized);
         }
         
         return await LogoutAsync(userId);
@@ -406,20 +414,20 @@ public class IdentityService : IIdentityService
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                return Result.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+                return Result.Failure("User not found", ErrorCode.UserNotFound);
             }
             
             // Check if username is already the same
             if (string.Equals(user.UserName, newUsername, StringComparison.OrdinalIgnoreCase))
             {
-                return Result.Success("Username đã đúng, không cần cập nhật");
+                return Result.Success("Username is already the same, no need to update");
             }
             
             // Check if new username conflicts with existing user
             var existingUser = await _userManager.FindByNameAsync(newUsername);
             if (existingUser != null && existingUser.Id != userId)
             {
-                return Result.Failure($"Username {newUsername} đã được sử dụng bởi người dùng khác", ErrorCode.DuplicateEntry);
+                return Result.Failure($"Username {newUsername} is already used by another user", ErrorCode.DuplicateEntry);
             }
             
             user.UserName = newUsername;
@@ -427,13 +435,13 @@ public class IdentityService : IIdentityService
             if (!result.Succeeded)
             {
                 var errors = result.Errors.Select(e => e.Description).ToList();
-                return Result.Failure("Cập nhật tên đăng nhập không thành công", ErrorCode.ValidationFailed, errors);
+                return Result.Failure("Update username failed", ErrorCode.ValidationFailed, errors);
             }
             return Result.Success();
         }
         catch (Exception ex)
         {
-            return Result.Failure($"Lỗi khi cập nhật username: {ex.Message}", ErrorCode.InternalError);
+            return Result.Failure($"Error updating username: {ex.Message}", ErrorCode.InternalError);
         }
     }
 
@@ -449,7 +457,7 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
-            return Result.Failure("Cập nhật tài khoản không thành công", ErrorCode.ValidationFailed, errors);
+            return Result.Failure("Update user failed", ErrorCode.ValidationFailed, errors);
         }
         return Result.Success();
     }
@@ -476,7 +484,7 @@ public class IdentityService : IIdentityService
         var user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
-            return Result.Failure("Người dùng không tồn tại", ErrorCode.UserNotFound);
+            return Result.Failure("User not found", ErrorCode.UserNotFound);
         }
 
         // Remove existing password
@@ -487,10 +495,10 @@ public class IdentityService : IIdentityService
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
-            return Result.Failure("Đặt lại mật khẩu không thành công", ErrorCode.ValidationFailed, errors);
+            return Result.Failure("Reset password failed", ErrorCode.ValidationFailed, errors);
         }
 
-        return Result.Success("Đặt lại mật khẩu thành công");
+        return Result.Success("Reset password success");
     }
 
     public async Task<Result<IEnumerable<string>>> GetAllUsernamesAsync()
@@ -506,7 +514,7 @@ public class IdentityService : IIdentityService
         }
         catch (Exception ex)
         {
-            return Result<IEnumerable<string>>.Failure("Lỗi khi lấy danh sách username", ErrorCode.InternalError);
+            return Result<IEnumerable<string>>.Failure("Error when getting list username", ErrorCode.InternalError);
         }
     }
 
@@ -548,17 +556,17 @@ public class IdentityService : IIdentityService
 
         if (errors.Any() && !successfulUsers.Any())
         {
-            return Result<List<AppUser>>.Failure("Tất cả tài khoản tạo thất bại", ErrorCode.ValidationFailed, errors);
+            return Result<List<AppUser>>.Failure("All accounts creation failed", ErrorCode.ValidationFailed, errors);
         }
 
         if (errors.Any())
         {
             return Result<List<AppUser>>.Success(successfulUsers, 
-                $"Tạo thành công {successfulUsers.Count}/{users.Count} tài khoản");
+                $"Create {successfulUsers.Count}/{users.Count} accounts success");
         }
 
         return Result<List<AppUser>>.Success(successfulUsers, 
-            $"Tạo thành công tất cả {successfulUsers.Count} tài khoản");
+            $"Create all {successfulUsers.Count} accounts success");
     }
 
     /// <summary>
@@ -579,8 +587,8 @@ public class IdentityService : IIdentityService
             if (userIds.Count != userIds.Distinct().Count())
             {
                 var duplicateIds = userIds.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key);
-                errors.Add($"Duplicate User IDs trong batch: {string.Join(", ", duplicateIds)}");
-                return Result<List<AppUser>>.Failure("Phát hiện duplicate User ID trong batch", ErrorCode.DuplicateEntry, errors);
+                errors.Add($"Duplicate User IDs in batch: {string.Join(", ", duplicateIds)}");
+                return Result<List<AppUser>>.Failure("Duplicate User ID in batch", ErrorCode.DuplicateEntry, errors);
             }
             
             if (userNames.Count != userNames.Distinct(StringComparer.OrdinalIgnoreCase).Count())
@@ -588,7 +596,7 @@ public class IdentityService : IIdentityService
                 var duplicateUsernames = userNames.GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
                     .Where(g => g.Count() > 1).Select(g => g.Key);
                 errors.Add($"Duplicate usernames trong batch: {string.Join(", ", duplicateUsernames)}");
-                return Result<List<AppUser>>.Failure("Phát hiện duplicate username trong batch", ErrorCode.DuplicateEntry, errors);
+                return Result<List<AppUser>>.Failure("Duplicate username in batch", ErrorCode.DuplicateEntry, errors);
             }
 
             // Check for existing conflicts in database
@@ -599,8 +607,8 @@ public class IdentityService : IIdentityService
                 
             if (existingIds.Any())
             {
-                errors.Add($"User IDs đã tồn tại trong database: {string.Join(", ", existingIds)}");
-                return Result<List<AppUser>>.Failure("Phát hiện User ID đã tồn tại", ErrorCode.DuplicateEntry, errors);
+                errors.Add($"User IDs already exist in database: {string.Join(", ", existingIds)}");
+                return Result<List<AppUser>>.Failure("User ID already exists", ErrorCode.DuplicateEntry, errors);
             }
             
             var existingUsernames = await _userManager.Users
@@ -610,8 +618,8 @@ public class IdentityService : IIdentityService
                 
             if (existingUsernames.Any())
             {
-                errors.Add($"Usernames đã tồn tại trong database: {string.Join(", ", existingUsernames)}");
-                return Result<List<AppUser>>.Failure("Phát hiện username đã tồn tại", ErrorCode.DuplicateEntry, errors);
+                errors.Add($"Usernames already exist in database: {string.Join(", ", existingUsernames)}");
+                return Result<List<AppUser>>.Failure("Username already exists", ErrorCode.DuplicateEntry, errors);
             }
 
             // Create users one by one with detailed error tracking
@@ -647,7 +655,7 @@ public class IdentityService : IIdentityService
             }
 
             return Result<List<AppUser>>.Success(createdUsers, 
-                $"Tạo thành công tất cả {createdUsers.Count} tài khoản");
+                $"Create all {createdUsers.Count} accounts success");
         }
         catch (Exception ex)
         {
@@ -664,7 +672,7 @@ public class IdentityService : IIdentityService
                 }
             }
 
-            var finalError = $"Tạo tài khoản hàng loạt thất bại: {ex.Message}";
+            var finalError = $"Create multiple accounts failed: {ex.Message}";
             return Result<List<AppUser>>.Failure(finalError, ErrorCode.ValidationFailed, errors);
         }
     }

@@ -59,6 +59,24 @@ public class JwtService : IJwtService
         
         return (new JwtSecurityTokenHandler().WriteToken(token), userRoles ?? new List<string>());
     }
+
+    /// <summary>
+    /// Generate JWT token with expiration info for a user
+    /// </summary>
+    public (string token, List<string> roles, int expiresInMinutes, DateTime expiresAt) GenerateJwtTokenWithExpiration(AppUser user, string? requestOrigin = null)
+    {
+        var (token, roles) = GenerateJwtToken(user, requestOrigin);
+        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiresInMinutes);
+        return (token, roles, _jwtSettings.ExpiresInMinutes, expiresAt);
+    }
+    
+    /// <summary>
+    /// Get token expiration time in minutes
+    /// </summary>
+    public int GetTokenExpirationMinutes()
+    {
+        return _jwtSettings.ExpiresInMinutes;
+    }
     
     /// <summary>
     /// Generate refresh token

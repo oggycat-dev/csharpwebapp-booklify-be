@@ -107,13 +107,13 @@ public class StaffRoleAccessFilter : SystemAccessFilterBase
 }
 
 /// <summary>
-/// Filter that allows only admin access
+/// Filter that allows only admin and staff access to admin portal
 /// </summary>
 public class AdminRoleAccessFilter : SystemAccessFilterBase
 {
     protected override bool IsAuthorizedForSystem(AuthenticationResponse user)
     {
-        return HasRole(user, "Admin");
+        return HasRole(user, "Admin") || HasRole(user, "Staff");
     }
     
     protected override string GetSystemName()
@@ -123,6 +123,6 @@ public class AdminRoleAccessFilter : SystemAccessFilterBase
     
     protected override string GetAllowedRolesDescription()
     {
-        return "Administrators";
+        return "Staff members and Administrators";
     }
 } 

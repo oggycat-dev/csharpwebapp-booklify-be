@@ -5,7 +5,7 @@ namespace Booklify.API.Extensions;
 
 public static class MigrationExtensions
 {
-    public static void ApplyMigrations(this IApplicationBuilder app, ILogger logger)
+    public static async Task ApplyMigrations(this IApplicationBuilder app, ILogger logger)
     {
         try
         {
@@ -17,16 +17,16 @@ public static class MigrationExtensions
 
             logger.LogInformation("Starting database migrations...");
             
-            // Check database connections
+            // Check database connections with retry logic
             try
             {
-                identityDbContext.Database.CanConnect();
-                businessDbContext.Database.CanConnect();
-                logger.LogInformation("Successfully connected to the databases.");
+                await RetryDatabaseConnection(identityDbContext, "Identity", logger);
+                await RetryDatabaseConnection(businessDbContext, "Business", logger);
+                logger.LogInformation("Successfully connected to all databases.");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to connect to one or more databases!");
+                logger.LogError(ex, "Failed to connect to one or more databases after multiple attempts!");
                 throw;
             }
 
@@ -82,6 +82,32 @@ public static class MigrationExtensions
         {
             logger.LogError(ex, "A problem occurred during database migrations!");
             throw;
+        }
+    }
+
+    private static async Task RetryDatabaseConnection(DbContext context, string contextName, ILogger logger, int maxRetries = 3, int delaySeconds = 5)
+    {
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                logger.LogInformation("Attempting to connect to {ContextName} database (attempt {Attempt}/{MaxRetries})...", contextName, attempt, maxRetries);
+                
+                // Test connection
+                await context.Database.CanConnectAsync();
+                logger.LogInformation("Successfully connected to {ContextName} database on attempt {Attempt}", contextName, attempt);
+                return;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                logger.LogWarning(ex, "Failed to connect to {ContextName} database on attempt {Attempt}. Retrying in {DelaySeconds} seconds...", contextName, attempt, delaySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to connect to {ContextName} database after {MaxRetries} attempts", contextName, maxRetries);
+                throw;
+            }
         }
     }
 

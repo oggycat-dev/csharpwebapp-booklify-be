@@ -16,6 +16,10 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.Json;
+using Hangfire;
+using Booklify.API.Filters;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +70,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddSwaggerConfiguration();
 builder.Services.AddCorsConfiguration(builder.Configuration);
 builder.Services.AddJwtConfiguration(builder.Configuration);
+builder.Services.AddHangfireServices(builder.Configuration);
+builder.Services.AddGeminiConfiguration(builder.Configuration);
 
 // Add application and infrastructure services
 builder.Services.AddApplication();
@@ -86,6 +92,22 @@ builder.Services.AddAuthorization();
 // Add HTTP context accessor for current user service
 builder.Services.AddHttpContextAccessor();
 
+// Configure server options for large file uploads
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = 600 * 1024 * 1024; // 600MB
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(10);
+    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(10);
+});
+
+// Configure form options for multipart uploads
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 600 * 1024 * 1024; // 600MB
+    options.ValueLengthLimit = 600 * 1024 * 1024; // 600MB
+    options.MultipartHeadersLengthLimit = 600 * 1024 * 1024; // 600MB
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -94,7 +116,7 @@ if (isDevelopment)
     try
     {
         startupLogger.LogInformation("Initializing and migrating database...");
-        app.ApplyMigrations(startupLogger);
+        await app.ApplyMigrations(startupLogger);
         app.EnsureDatabaseCreated(startupLogger);
         await app.SeedDataAsync(startupLogger);
         startupLogger.LogInformation("Database initialization completed successfully.");
@@ -133,6 +155,18 @@ app.UseRouting();
 app.UseJwtMiddleware();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Configure Hangfire dashboard with authorization
+app.UseHangfireDashboard("/hangfire", new Hangfire.DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthorizationFilter() }
+});
+
+// Initialize Hangfire recurring jobs
+app.Services.UseHangfireConfiguration();
+
+// Validate Gemini configuration
+app.ValidateGeminiConfiguration();
 
 // Finally map the controllers
 app.MapControllers();
